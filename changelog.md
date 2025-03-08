@@ -34,8 +34,15 @@ Este archivo registra todos los cambios significativos realizados en el proyecto
   - Implementada solución alternativa para las líneas +DI y -DI del indicador ADX
   - Agregado cálculo manual para +DI y -DI en OnBarUpdate
   - Corregido método IsLastBarOnChart para usar propiedades disponibles en NinjaTrader
+  - Añadidas referencias necesarias a NinjaTrader.NinjaScript.DrawingTools y NinjaTrader.Core.FloatingPoint
+  - Mejorado el manejo de la lista de indicadores del chart para evitar errores de conversión de tipos
+  - Reemplazado IsLastBarOfSession con condiciones basadas en BarsInProgress y CurrentBar
+  - Agregada gestión de excepciones en llamadas a Draw para evitar errores al dibujar en el chart
+  - Simplificada la gestión de UI: reemplazado el botón de exportación con instrucciones de texto en el chart
+  - Mejorado el manejo de estados del indicador con mensajes más claros
 
 ### Eliminado
+- AITraderDataExtractor.cs: Eliminada la funcionalidad de botón de exportación que dependía de controles de UI no disponibles en la versión actual de NinjaTrader
 
 ## [0.0.1] - 2025-03-08
 - Configuración inicial del proyecto 

@@ -1,0 +1,5 @@
+NinjaScript File,Error,Code,Line,Column,
+DataExtractorcs.cs,'ChartControl' does not contain a definition for 'Controls' and no accessible extension method 'Controls' accepting a first argument of type 'ChartControl' could be found (are you missing a using directive or an assembly reference?),CS1061,241,70,
+DataExtractorcs.cs,'ChartControl' does not contain a definition for 'Controls' and no accessible extension method 'Controls' accepting a first argument of type 'ChartControl' could be found (are you missing a using directive or an assembly reference?),CS1061,243,58,
+DataExtractorcs.cs,'ChartControl' does not contain a definition for 'Controls' and no accessible extension method 'Controls' accepting a first argument of type 'ChartControl' could be found (are you missing a using directive or an assembly reference?),CS1061,284,70,
+DataExtractorcs.cs,'ChartControl' does not contain a definition for 'Controls' and no accessible extension method 'Controls' accepting a first argument of type 'ChartControl' could be found (are you missing a using directive or an assembly reference?),CS1061,286,58,
