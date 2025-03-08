@@ -21,7 +21,7 @@ using NinjaTrader.NinjaScript.DrawingTools;
 
 namespace NinjaTrader.NinjaScript.Strategies
 {
-    public class RLExecutor : Strategy
+    public class AITraderExecutor : Strategy
     {
         #region TCP Server Manager
         /// <summary>

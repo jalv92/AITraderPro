@@ -1,0 +1,2 @@
+NinjaScript File,Error,Code,Line,Column,
+DataExtractorcs.cs,Argument 2: cannot convert from 'double' to 'int',CS1503,137,70,

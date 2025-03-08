@@ -1,0 +1,4 @@
+NinjaScript File,Error,Code,Line,Column,
+DataExtractorcs.cs,Argument 2: cannot convert from 'double' to 'int',CS1503,137,53,
+DataExtractorcs.cs,'ADX' does not contain a definition for 'Plus' and no accessible extension method 'Plus' accepting a first argument of type 'ADX' could be found (are you missing a using directive or an assembly reference?),CS1061,142,31,
+DataExtractorcs.cs,'ADX' does not contain a definition for 'Minus' and no accessible extension method 'Minus' accepting a first argument of type 'ADX' could be found (are you missing a using directive or an assembly reference?),CS1061,143,32,

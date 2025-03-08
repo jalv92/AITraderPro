@@ -8,6 +8,7 @@ using NinjaTrader.Cbi;
 using NinjaTrader.Gui;
 using NinjaTrader.Gui.Chart;
 using NinjaTrader.NinjaScript;
+using NinjaTrader.NinjaScript.Indicators;
 
 namespace NinjaTrader.NinjaScript.Indicators
 {
@@ -88,11 +89,13 @@ namespace NinjaTrader.NinjaScript.Indicators
         private EMA slowEMA;
         private RSI rsi;
         private Stochastics stoch;
-        private BollingerBands bbands;
+        private Bollinger bbands;
         private MACD macd;
         private ATR atr;
         private ADX adx;
         private VOL volume;
+        private Series<double> adxPlus;
+        private Series<double> adxMinus;
         #endregion
 
         protected override void OnStateChange()
@@ -131,16 +134,40 @@ namespace NinjaTrader.NinjaScript.Indicators
                 slowEMA = EMA(SlowEMAPeriod);
                 rsi = RSI(RSIPeriod, 1);
                 stoch = Stochastics(StochasticPeriod, 3, 3);
-                bbands = BollingerBands(BollingerPeriod, BollingerStdDev);
+                bbands = Bollinger(Convert.ToInt32(BollingerPeriod), Convert.ToInt32(BollingerStdDev));
                 macd = MACD(MACDFast, MACDSlow, MACDSignal);
                 atr = ATR(ATRPeriod);
                 adx = ADX(ADXPeriod);
                 volume = VOL();
+                
+                // Crear series personalizadas para los componentes de ADX
+                adxPlus = new Series<double>(this);
+                adxMinus = new Series<double>(this);
             }
         }
 
         protected override void OnBarUpdate()
         {
+            // Actualizar componentes ADX manualmente
+            if (BarsInProgress == 0)
+            {
+                // Computo manual de la línea +DI y -DI usando Formula DI
+                if (CurrentBar >= 1)
+                {
+                    // Estas son aproximaciones simplificadas. Para mayor precisión, consulta la documentación de NinjaTrader
+                    double trueRange = Math.Max(High[0] - Low[0], Math.Max(Math.Abs(High[0] - Close[1]), Math.Abs(Low[0] - Close[1])));
+                    double upMove = High[0] - High[1];
+                    double downMove = Low[1] - Low[0];
+                    
+                    double plusDM = upMove > downMove && upMove > 0 ? upMove : 0;
+                    double minusDM = downMove > upMove && downMove > 0 ? downMove : 0;
+                    
+                    // Almacenar los valores en nuestras propias series
+                    adxPlus[0] = (plusDM / trueRange) * 100;
+                    adxMinus[0] = (minusDM / trueRange) * 100;
+                }
+            }
+            
             if (ExportToCSV && CurrentBar > 0 && IsLastBarOnChart())
             {
                 ExportDataToCSV();
@@ -347,8 +374,8 @@ namespace NinjaTrader.NinjaScript.Indicators
                             row.Add(macd.Diff[barsAgo].ToString(System.Globalization.CultureInfo.InvariantCulture));
                             row.Add(atr[barsAgo].ToString(System.Globalization.CultureInfo.InvariantCulture));
                             row.Add(adx[barsAgo].ToString(System.Globalization.CultureInfo.InvariantCulture));
-                            row.Add(adx.Plus[barsAgo].ToString(System.Globalization.CultureInfo.InvariantCulture));
-                            row.Add(adx.Minus[barsAgo].ToString(System.Globalization.CultureInfo.InvariantCulture));
+                            row.Add(adxPlus[barsAgo].ToString(System.Globalization.CultureInfo.InvariantCulture));
+                            row.Add(adxMinus[barsAgo].ToString(System.Globalization.CultureInfo.InvariantCulture));
                             
                             // Características adicionales para detección de patrones
                             // EMACrossover: 1 cuando FastEMA cruza por encima de SlowEMA, -1 cuando cruza por debajo, 0 en otro caso
@@ -449,7 +476,7 @@ namespace NinjaTrader.NinjaScript.Indicators
         
         private bool IsLastBarOnChart()
         {
-            return IsLastBarOfSession && IsFirstTickOfBar;
+            return BarsInProgress == 0 && CurrentBars[0] >= 0 && CurrentBars[0] == BarsArray[0].Count - 1 && IsFirstTickOfBar;
         }
     }
 }
