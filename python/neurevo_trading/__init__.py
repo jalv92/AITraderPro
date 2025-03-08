@@ -9,6 +9,7 @@ Este paquete contiene módulos para:
 - Entornos de simulación de mercados financieros
 - Herramientas para backtesting y trading en vivo
 - Utilidades para visualización y procesamiento de datos
+- Integración con el framework NeurEvo para aprendizaje por refuerzo avanzado
 """
 
 __version__ = "0.1.0"
@@ -18,3 +19,10 @@ from neurevo_trading.config import Config
 
 # Configuración global
 config = Config()
+
+# Intentar importar NeurEvo (no falla si no está disponible)
+try:
+    import neurevo
+    has_neurevo = True
+except ImportError:
+    has_neurevo = False

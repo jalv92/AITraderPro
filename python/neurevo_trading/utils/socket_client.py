@@ -4,6 +4,7 @@ import threading
 import queue
 import logging
 import json
+import select
 from typing import Dict, List, Optional, Tuple, Union, Callable
 
 class NinjaTraderClient:

@@ -9,6 +9,9 @@ import os
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Union
 import json
+import neurevo
+from neurevo_trading.agents.neurevo_agent import NeurEvoTradingAgent
+from neurevo_trading.environment.neurevo_adapter import NeurEvoEnvironmentAdapter
 
 from neurevo_trading.agents.pattern_detector import PatternDetector
 from neurevo_trading.environment.trading_env import TradingEnvironment
@@ -81,6 +84,100 @@ class PatternTraderBacktest:
         self.pattern_detections = []
         self.equity_curve = None
         self.statistics = {}
+    
+    def run_with_neurevo(self, data: pd.DataFrame, model_path=None, config=None, 
+                    plot=True, save_results=True, results_dir="backtest_results"):
+        """
+        Ejecuta el backtest usando un cerebro NeurEvo.
+        
+        Args:
+            data: DataFrame con datos de precios
+            model_path: Ruta al modelo entrenado (opcional)
+            config: Configuración para NeurEvo
+            plot: Si es True, genera gráficos de resultados
+            save_results: Si es True, guarda los resultados
+            results_dir: Directorio para guardar resultados
+            
+        Returns:
+            Dict con estadísticas del backtest
+        """
+        start_time = time.time()
+        logger.info("Iniciando backtest con NeurEvo...")
+        
+        # Preparar datos
+        self.data = self.data_processor.prepare_data(data, add_features=True)
+        
+        # Crear entorno de trading
+        env = TradingEnvironment(
+            data=self.data,
+            window_size=self.window_size,
+            initial_balance=self.initial_capital,
+            commission=self.commission,
+            slippage=self.slippage
+        )
+        
+        # Configuración por defecto para NeurEvo
+        default_config = {
+            "hidden_layers": [256, 128, 64],
+            "learning_rate": 0.00025,
+            "batch_size": 64,
+            "curiosity_weight": 0.1
+        }
+        
+        if config:
+            default_config.update(config)
+        
+        # Crear cerebro NeurEvo
+        brain = neurevo.create_brain(default_config)
+        
+        # Crear adaptador para el entorno
+        adapter = NeurEvoEnvironmentAdapter(env)
+        env_id = adapter.register_with_brain(brain)
+        
+        # Crear agente
+        agent_id = adapter.create_agent()
+        
+        # Cargar modelo si se proporciona
+        if model_path and os.path.exists(model_path):
+            logger.info(f"Cargando modelo desde {model_path}")
+            brain.load(model_path)
+        else:
+            logger.warning("No se proporcionó modelo, los resultados serán aleatorios o basados en un modelo sin entrenar")
+        
+        # Ejecutar episodios de backtest
+        rewards = []
+        trades = []
+        equity_curve = [self.initial_capital]
+        
+        # Ejecutar un episodio completo
+        total_reward = adapter.run_episode(agent_id)
+        rewards.append(total_reward)
+        
+        # Obtener información de trades
+        self.trades = env.trade_history
+        
+        # Calcular equity curve
+        for t in self.trades:
+            equity_point = equity_curve[-1]
+            if "pnl" in t:
+                equity_point += t["pnl"]
+            equity_curve.append(equity_point)
+        
+        # Calcular estadísticas de rendimiento
+        self.statistics = self._calculate_statistics()
+        
+        # Guardar resultados
+        if save_results:
+            self._save_results(results_dir)
+        
+        # Generar gráficos
+        if plot:
+            self._generate_plots(results_dir if save_results else None)
+        
+        logger.info(f"Backtest con NeurEvo completado en {time.time() - start_time:.2f} segundos")
+        logger.info(f"Estadísticas: {json.dumps(self.statistics, indent=2)}")
+        
+        return self.statistics
     
     def _load_config(self, config_file):
         """Carga la configuración desde un archivo JSON."""
