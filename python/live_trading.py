@@ -5,6 +5,7 @@ import threading
 import json
 import pandas as pd
 import numpy as np
+import pickle
 from datetime import datetime
 import os
 import sys
@@ -84,10 +85,44 @@ class LiveTradingSystem:
             window_size=self.window_size
         )
         
-        # Cargar modelo si se especifica
+        # Cargar modelo neurevo si se especifica
+        self.neurevo_model = None
         if self.model_path and os.path.exists(self.model_path):
-            self.pattern_detector.load(self.model_path)
-            logger.info(f"Modelo de detección de patrones cargado desde {self.model_path}")
+            try:
+                # Intentar cargar como modelo neurevo
+                # Usamos pickle directamente para evitar problemas con torch.load y weights_only
+                # en versiones recientes de PyTorch (2.6+)
+                with open(self.model_path, 'rb') as f:
+                    try:
+                        import pickle
+                        model_data = pickle.load(f)
+                        self.neurevo_model = model_data.get('adapter')
+                        self.neurevo_config = model_data.get('config')
+                        logger.info(f"Modelo neurevo cargado desde {self.model_path}")
+                        logger.info(f"Configuración del modelo: {self.neurevo_config}")
+                    except Exception as pickle_err:
+                        logger.error(f"Error al cargar con pickle: {pickle_err}")
+                        # Intentar con torch.load como respaldo
+                        f.seek(0)  # Volver al inicio del archivo
+                        import torch
+                        try:
+                            # Usar explícitamente weights_only=False
+                            model_data = torch.load(f, map_location='cpu', weights_only=False)
+                            self.neurevo_model = model_data.get('adapter')
+                            self.neurevo_config = model_data.get('config') 
+                            logger.info(f"Modelo neurevo cargado con torch.load desde {self.model_path}")
+                        except Exception as torch_err:
+                            logger.error(f"Error al cargar con torch.load: {torch_err}")
+                            raise
+            except Exception as e:
+                logger.error(f"Error al cargar modelo neurevo: {e}")
+                logger.warning("Intentando cargar como modelo de detector de patrones...")
+                try:
+                    self.pattern_detector.load(self.model_path)
+                    logger.info(f"Modelo de detección de patrones cargado desde {self.model_path}")
+                except Exception as e2:
+                    logger.error(f"También falló la carga como detector de patrones: {e2}")
+                    logger.warning("No se ha podido cargar el modelo, usando detector básico")
         else:
             logger.warning("No se ha especificado un modelo válido, usando detector básico")
         
@@ -245,75 +280,110 @@ class LiveTradingSystem:
         # Agregar características para el análisis
         enhanced_data = create_features(recent_data)
         
-        # Detectar patrones
-        pattern_info = self.pattern_detector.detect(enhanced_data)
+        # Usar el modelo neurevo si está disponible
+        if self.neurevo_model is not None:
+            try:
+                # Usar el método run_episode que sabemos que funciona
+                reward = self.neurevo_model.run_episode(None)
+                logger.info(f"Ejecución del modelo neurevo: Reward={reward}")
+                
+                # Convertir el reward en una señal de trading
+                # Nota: Esto es una lógica simple y debería mejorarse
+                if reward > 50.0:  # Umbral para señal positiva
+                    signal = 1  # Long
+                    confidence = min(0.95, 0.7 + (reward - 50.0) / 100)
+                elif reward < 50.0:  # Umbral para señal negativa
+                    signal = -1  # Short
+                    confidence = min(0.95, 0.7 + (50.0 - reward) / 100)
+                else:
+                    signal = 0  # Neutral
+                    confidence = 0.5
+                
+                pattern_type = "RL_PREDICTION"
+                risk_reward = 1.5  # Valor por defecto
+                
+                logger.info(f"Predicción del modelo neurevo: Signal={signal}, Conf={confidence:.2f}, RR={risk_reward:.2f}")
+                
+            except Exception as e:
+                logger.error(f"Error al usar modelo neurevo: {e}")
+                # Si falla, recurrir al detector de patrones
+                pattern_info = self.pattern_detector.detect(enhanced_data)
+                signal = 1 if pattern_info['pattern_name'] in ['DOUBLE_BOTTOM', 'INV_HEAD_AND_SHOULDERS'] else \
+                     -1 if pattern_info['pattern_name'] in ['DOUBLE_TOP', 'HEAD_AND_SHOULDERS'] else 0
+                confidence = pattern_info['confidence']
+                pattern_type = pattern_info['pattern_name']
+                risk_reward = 1.0  # Valor por defecto
+                
+                if 'entry_price' in pattern_info and 'stop_loss' in pattern_info and 'take_profit' in pattern_info:
+                    if pattern_info['stop_loss'] > 0 and pattern_info['take_profit'] > 0:
+                        risk = abs(pattern_info['entry_price'] - pattern_info['stop_loss'])
+                        reward = abs(pattern_info['entry_price'] - pattern_info['take_profit'])
+                        risk_reward = reward / risk if risk > 0 else 1.0
+        else:
+            # Usar detector de patrones si no hay modelo neurevo
+            pattern_info = self.pattern_detector.detect(enhanced_data)
+            signal = 1 if pattern_info['pattern_name'] in ['DOUBLE_BOTTOM', 'INV_HEAD_AND_SHOULDERS'] else \
+                 -1 if pattern_info['pattern_name'] in ['DOUBLE_TOP', 'HEAD_AND_SHOULDERS'] else 0
+            confidence = pattern_info['confidence']
+            pattern_type = pattern_info['pattern_name']
+            risk_reward = 1.0  # Valor por defecto
+            
+            if 'entry_price' in pattern_info and 'stop_loss' in pattern_info and 'take_profit' in pattern_info:
+                if pattern_info['stop_loss'] > 0 and pattern_info['take_profit'] > 0:
+                    risk = abs(pattern_info['entry_price'] - pattern_info['stop_loss'])
+                    reward = abs(pattern_info['entry_price'] - pattern_info['take_profit'])
+                    risk_reward = reward / risk if risk > 0 else 1.0
         
-        pattern_name = pattern_info.get("pattern_name", "NO_PATTERN")
-        confidence = pattern_info.get("confidence", 0.0)
-        
-        # Si se detecta un patrón con confianza suficiente
-        if pattern_name != "NO_PATTERN" and confidence >= self.min_confidence:
-            # Si es un patrón nuevo o ha pasado suficiente tiempo desde el último
+        # Solo procesar si la señal no es neutral, la confianza y el ratio riesgo/recompensa son suficientes
+        if signal != 0 and confidence >= self.min_confidence and risk_reward >= self.min_risk_reward:
+            # Evitar repetir señales en poco tiempo
             current_time = time.time()
-            if (self.last_pattern != pattern_name or 
-                not self.last_pattern_time or 
-                current_time - self.last_pattern_time > 300):  # 5 minutos
-                
-                logger.info(f"Patrón detectado: {pattern_name} con confianza {confidence:.2f}")
-                
-                # Actualizar registro de último patrón
-                self.last_pattern = pattern_name
+            if self.last_pattern_time is None or (current_time - self.last_pattern_time) > 60:  # 1 minuto mínimo
+                self._process_trading_signal(signal, confidence, risk_reward, pattern_type)
                 self.last_pattern_time = current_time
-                
-                # Si el trading está activado, generar señal
-                if self.trading_enabled:
-                    self._generate_trading_signal(pattern_info, enhanced_data)
-    
-    def _generate_trading_signal(self, pattern_info, data):
-        """Genera una señal de trading basada en el patrón detectado."""
-        pattern_name = pattern_info.get("pattern_name")
-        confidence = pattern_info.get("confidence", 0.0)
-        entry_price = pattern_info.get("entry_price", data["Close"].iloc[-1])
-        stop_loss = pattern_info.get("stop_loss", 0.0)
-        take_profit = pattern_info.get("take_profit", 0.0)
+                self.last_pattern = pattern_type
         
-        # Determinar dirección de la señal basada en el patrón
-        signal = 0
-        if pattern_name in ["DOUBLE_BOTTOM", "INV_HEAD_AND_SHOULDERS"]:
-            signal = 1  # Long
-        elif pattern_name in ["DOUBLE_TOP", "HEAD_AND_SHOULDERS"]:
-            signal = -1  # Short
-        
-        # Si no hay señal clara o es la misma posición actual, no hacer nada
-        if signal == 0 or signal == self.current_position:
+    def _process_trading_signal(self, signal, confidence, risk_reward, pattern_type):
+        """Procesa una señal de trading basada en el patrón detectado."""
+        # Si no está habilitado el trading, solo registrar
+        if not self.trading_enabled:
+            logger.info(f"Señal detectada pero trading deshabilitado: {signal} ({pattern_type}), "
+                        f"Confianza: {confidence:.2f}, R/R: {risk_reward:.2f}")
             return
         
-        # Calcular ratio riesgo/recompensa
-        risk = abs(entry_price - stop_loss)
-        reward = abs(take_profit - entry_price)
-        risk_reward = reward / risk if risk > 0 else 0
-        
-        # Verificar ratio mínimo de riesgo/recompensa
-        if risk_reward < self.min_risk_reward:
-            logger.info(f"Señal ignorada: ratio R/R {risk_reward:.2f} inferior al mínimo {self.min_risk_reward}")
+        # Si ya tenemos una posición en la misma dirección, ignorar
+        if signal == self.current_position:
+            logger.info(f"Señal ignorada: ya tenemos posición en la misma dirección ({signal})")
             return
+        
+        # Si tenemos una posición contraria, cerrarla primero
+        if self.current_position != 0 and self.current_position != signal:
+            self._close_position("Cambio de dirección")
         
         # Calcular tamaño de posición basado en confianza
-        position_size = min(0.8, confidence)
+        position_size = min(0.9, confidence)
+        
+        # Valores por defecto para stop loss y take profit (en ticks)
+        # Estos valores deberían ajustarse según el instrumento y timeframe
+        stop_loss = 20
+        take_profit = stop_loss * risk_reward
         
         # Enviar señal de trading
-        self.nt_client.send_trading_signal(
+        success = self.nt_client.send_trading_signal(
             signal=signal,
             position_size=position_size,
-            stop_loss=abs(entry_price - stop_loss) / data["ATR"].iloc[-1] if "ATR" in data else 20,
-            take_profit=abs(take_profit - entry_price) / data["ATR"].iloc[-1] if "ATR" in data else 30,
-            pattern_type=pattern_name,
+            stop_loss=stop_loss,
+            take_profit=take_profit,
+            pattern_type=pattern_type,
             confidence=confidence,
             risk_reward=risk_reward
         )
         
-        logger.info(f"Señal enviada: {signal} con tamaño {position_size:.2f}, "
-                   f"SL={stop_loss:.2f}, TP={take_profit:.2f}, R/R={risk_reward:.2f}")
+        if success:
+            logger.info(f"Señal enviada: {signal} con tamaño {position_size:.2f}, "
+                      f"SL={stop_loss:.0f} ticks, TP={take_profit:.0f} ticks, R/R={risk_reward:.2f}")
+        else:
+            logger.error(f"Error al enviar señal de trading")
     
     def _close_position(self, reason):
         """Cierra la posición actual."""

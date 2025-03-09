@@ -5,6 +5,76 @@ Este archivo registra todos los cambios significativos realizados en el proyecto
 ## [Unreleased]
 
 ### Añadido
+- Sistema avanzado de gestión de riesgo para entrenamiento
+  - Implementación configurable de Stop Loss y Take Profit
+  - 5 configuraciones predefinidas con diferentes relaciones riesgo/recompensa
+  - Espacio de acción ampliado para permitir al agente elegir la configuración adecuada
+  - Documentación detallada de las nuevas funcionalidades en risk_management_docs.md
+- Sistema de penalización progresiva por drawdowns
+  - Umbrales configurables vía parámetros de línea de comandos
+  - Factor de severidad creciente para drawdowns que superan múltiples umbrales
+  - Penalización exponencial para drawdowns extremos
+  - Mayor protección del capital durante el entrenamiento
+- Script para optimización de memoria y rendimiento (optimize_memory.py)
+  - Análisis y optimización de tipos de datos en DataFrames grandes
+- Nuevo script de entrenamiento optimizado (train_optimized.py)
+  - Manejo robusto de excepciones y recuperación automática
+  - Sistema avanzado de logging con múltiples niveles de detalle
+  - Checkpoints automáticos durante el entrenamiento
+  - Visualización en tiempo real del progreso de entrenamiento
+  - Estimación de tiempo restante de entrenamiento
+  - Estadísticas detalladas sobre rendimiento y métricas
+- Mejoras en la carga de datos en DataProcessor
+  - Soporte para limitación de filas durante la carga (parámetro nrows)
+  - Mejor manejo de memoria durante la carga de archivos grandes
+  - Opciones de cache para mejorar rendimiento en cargas repetidas
+- Optimizaciones para entrenamiento con grandes volúmenes de datos
+  - Manejo avanzado de errores durante normalización y evaluación
+  - Sistema de checkpoints automáticos para recuperación de entrenamiento
+  - Opciones adicionales para optimización de memoria
+  - Soporte para limitación de filas en pruebas iniciales
+- Nuevos scripts para procesamiento y entrenamiento con grandes volúmenes de datos
+  - combine_data_files.py: Combina múltiples archivos CSV de datos en uno solo
+  - train_with_full_data.py: Entrena el modelo con conjuntos de datos completos
+  - Soporte para entrenamiento con GPU para acelerar el procesamiento
+  - Guardado de checkpoints para continuar entrenamientos interrumpidos
+- Mejora en AITraderDataExtractor para exportar más de 256 barras
+  - Implementación de acceso directo por índice en lugar de barsAgo
+  - Eliminación de la limitación de 256 barras de NinjaTrader
+  - Soporte para exportación de sets de datos completos (miles de barras)
+  - Procesamiento optimizado que reduce los errores de exportación
+- Mejoras en el manejo de valores extremos durante el entrenamiento
+  - Limitación de recompensas para evitar explosiones numéricas
+  - Mejor manejo de nombres de columnas en mayúsculas/minúsculas
+  - Reinicio seguro del balance en casos de valores inválidos
+  - Verificación y limitación de cambios de precios
+- Mejoras en la visualización del progreso de entrenamiento
+  - Visualización detallada del progreso con barra de avance
+  - Estadísticas en tiempo real sobre recompensas y drawdowns
+  - Estimación del tiempo restante de entrenamiento
+  - Formato tabular para mejor seguimiento de métricas
+- Nuevo script para pruebas rápidas (test_training.py)
+  - Permite ejecutar entrenamientos rápidos con 100 episodios
+  - Configuración optimizada para pruebas rápidas
+  - Evaluación automática del modelo entrenado
+  - Guardado del modelo en carpeta temporal para análisis
+- Rediseño completo del sistema de entrenamiento para enfocarse en la optimización del PnL con crecimiento estable
+  - Nuevo enfoque que busca una curva de equity con pendiente de aproximadamente 45 grados
+  - Sistema de recompensa basado en el crecimiento estable de la cuenta y minimización de drawdowns
+  - Eliminación de la dependencia de patrones de mercado específicos
+  - Implementación de métricas de rendimiento enfocadas en la calidad de la curva de equity
+- Nuevas funciones de visualización especializadas en análisis de rendimiento
+  - Función plot_equity_curve para visualizar la curva de equity con métricas clave
+  - Función plot_performance_metrics para analizar el rendimiento global de la estrategia
+  - Función plot_training_progress para seguir la evolución del entrenamiento
+- Mejoras en el adaptador NeurEvo
+  - Soporte para dispositivos CUDA cuando están disponibles
+  - Mejor manejo de excepciones durante la predicción
+  - Seguimiento mejorado de métricas durante el entrenamiento (equity, drawdown)
+- Actualización de la configuración del cerebro NeurEvo
+  - Parámetros optimizados para el aprendizaje de estrategias de crecimiento estable
+  - Redes neuronales más profundas (4 capas en lugar de 3)
+  - Ajuste de hiperparámetros para mejorar la exploración y la explotación
 - Creación de la estructura inicial del proyecto
   - Estructura de directorios para NinjaTrader (indicators y strategies)
   - Estructura de directorios para Python (neurevo_trading con environment, agents, models, utils)
@@ -21,8 +91,82 @@ Este archivo registra todos los cambios significativos realizados en el proyecto
   - Opción para utilizar indicadores ya existentes en el chart en lugar de crearlos internamente
   - Sistema híbrido que detecta indicadores del chart por nombre o los crea si no existen
   - Reducción de carga computacional al reutilizar indicadores ya calculados
+- Implementación de la clase base abstracta TradingAgent
+  - Definición de la interfaz básica para todos los agentes de trading
+  - Métodos abstractos act() y update() que deben implementar las clases derivadas
+  - Métodos save() y load() con implementación por defecto
+- Implementación de adaptador de entorno Gym para compatibilidad con neurevo
+  - Creación de clase GymEnvAdapter que encapsula el entorno de trading
+  - Integración con la API actualizada de neurevo
+- Implementación de bucle de entrenamiento personalizado
+  - Sistema de entrenamiento propio basado en la API actual de neurevo
+  - Generación de estadísticas de entrenamiento y evaluación
+  - Sistema de guardado con pickle para preservar el estado completo del adaptador
+- Implementación de sistema de depuración mejorado
+  - Mensajes detallados en cada etapa del proceso
+  - Captura y manejo de excepciones
+  - Redirección de salidas para mejor diagnóstico
+- Actualización del sistema de trading en vivo
+  - Integración del modelo neurevo en LiveTradingSystem
+  - Carga del modelo desde archivo pickle en formato compatible con PyTorch 2.6+
+  - Adaptación del sistema para utilizar modelos de tipo neurevo o PatternDetector
 
 ### Modificado
+- TradingEnvironment: Mejora significativa en la normalización y manejo de datos
+  - Implementación super robusta de _normalize_data con manejo completo de casos extremos
+  - Conversión explícita a float para evitar errores de ambigüedad en Series
+  - Opción para silenciar mensajes de error durante normalización
+  - Manejo de valores NaN, infinitos, y casos especiales
+- DataProcessor: Mejora en la carga y manipulación de datos
+  - Soporte para parámetro nrows en método load_csv
+  - Mejor manejo de cachés y memoria
+  - Validaciones más robustas durante la carga
+- TradingEnvironment: Mejora en la normalización y manejo de datos
+  - Implementación robusta del método _normalize_data con manejo de excepciones
+  - Protección contra valores extremos, NaN o infinito durante la normalización
+  - Múltiples estrategias de normalización según el tipo de datos
+  - Gestión avanzada de errores para evitar interrupciones en el entrenamiento
+- NeurEvoEnvironmentAdapter: Mejora en el manejo de errores durante evaluación
+  - Protección contra excepciones en run_episode para evitar fallos en evaluación
+  - Implementación de límite de pasos para evitar bucles infinitos
+  - Mejor manejo de información de estado para estadísticas confiables
+  - Recuperación de valores por defecto en casos de error
+- AITraderDataExtractor: Reimplementación del método de exportación
+  - Cambio del método de acceso a datos históricos usando GetValueAt en lugar de barsAgo
+  - Mejora en el cálculo de índices para acceder a datos históricos
+  - Procesamiento optimizado para grandes cantidades de datos
+  - Eliminación de la limitación de 256 barras
+- TradingEnvironment: Mejora en el manejo de valores extremos
+  - Limitación de recompensas a un rango razonable
+  - Mejor manejo de diferencias de precios en operaciones de trading
+  - Mejor normalización de datos de entrada
+  - Manejo robusto de nombres de columnas en mayúsculas y minúsculas
+- DataProcessor: Mejora en el procesamiento de datos
+  - Soporte automático para nombres de columnas en mayúsculas y minúsculas
+  - Mejor validación de datos y manejo de errores
+  - Indicadores técnicos más robustos
+- NeurEvoEnvironmentAdapter: Mejora en la visualización del progreso de entrenamiento
+  - Adición de barra de progreso visual
+  - Estadísticas detalladas por episodio con formato tabular
+  - Estimación del tiempo restante de entrenamiento
+  - Resumen final detallado con métricas clave
+- TradingEnvironment: Rediseñado completamente para enfocarse en el PnL
+  - Eliminadas todas las funciones de detección de patrones
+  - Nueva implementación del cálculo de recompensa basada en crecimiento estable
+  - Seguimiento continuo de la curva de equity y drawdown máximo
+  - Normalización mejorada de los datos de entrada
+- NeurEvoEnvironmentAdapter: Actualizado para trabajar con el nuevo enfoque
+  - Mejoras en el bucle de entrenamiento para seguimiento de equity y drawdown
+  - Implementación de evaluación más detallada con métricas de rendimiento
+  - Soporte para el uso de dispositivos GPU cuando están disponibles
+- NeurEvoTradingAgent: Optimizado para el nuevo enfoque
+  - Actualización de la configuración por defecto para el cerebro NeurEvo
+  - Implementación de nuevas métricas de rendimiento
+  - Eliminación de referencias a patrones de mercado
+- train_neurevo.py: Actualizado para el nuevo sistema de entrenamiento
+  - Nuevos parámetros de línea de comandos para configurar el ángulo objetivo de la curva de equity
+  - Visualización mejorada de los resultados de entrenamiento
+  - Guardado de modelos con formato optimizado para la nueva estrategia
 - AITraderExecutor.cs: Actualizado para soportar detección de patrones y gestión de riesgo mejorada
   - Modificación del formato de mensajes para incluir tipo de patrón, confianza y ratio riesgo/recompensa
   - Actualización de la validación de señales para incluir verificación de ratio riesgo/recompensa mínimo
@@ -40,8 +184,35 @@ Este archivo registra todos los cambios significativos realizados en el proyecto
   - Agregada gestión de excepciones en llamadas a Draw para evitar errores al dibujar en el chart
   - Simplificada la gestión de UI: reemplazado el botón de exportación con instrucciones de texto en el chart
   - Mejorado el manejo de estados del indicador con mensajes más claros
+- NeurEvoEnvironmentAdapter: Actualizado para compatibilidad con la API actual de neurevo
+  - Modificado método register_with_brain para adaptarse a los cambios en la API
+  - Rediseñado completamente método create_agent para utilizar adaptador Gym
+  - Reemplazado método train_agent con implementación propia compatible
+  - Reemplazado método run_episode con implementación simulada
+  - Simplificado flujo de creación y registro de entornos
+  - Eliminadas verificaciones innecesarias de agente nulo
+- train_neurevo.py: Actualizado para trabajar con el adaptador modificado
+  - Añadidos mensajes informativos para facilitar la depuración
+  - Adaptado el flujo de creación y entrenamiento del agente
+  - Modificado sistema de guardado para usar pickle en lugar de método save
+  - Implementado sistema de captura de excepciones
+  - Mejorada la salida de información de progreso
+- LiveTradingSystem: Actualizado para compatibilidad con modelos neurevo
+  - Adaptado para cargar modelos con formato pickle (weights_only=False)
+  - Modificada función _analyze_market para soportar múltiples tipos de modelos
+  - Mejorado el proceso de generación de señales de trading
+  - Añadida simulación básica de predicciones para fines de prueba
 
 ### Eliminado
+- PatternDetector y PatternDetectorCNN: Eliminados completamente
+  - Ya no se utiliza la detección de patrones en el entrenamiento
+  - Eliminadas todas las referencias y dependencias de detección de patrones
+- Funciones de detección de patrones en TradingEnvironment:
+  - Eliminados todos los métodos relacionados con la detección de patrones
+  - Eliminada la lógica de trading basada en patrones
+- Referencias a patrones en el sistema de visualización
+  - Eliminada la función plot_pattern_distribution
+  - Eliminados los análisis basados en patrones
 - AITraderDataExtractor.cs: Eliminada la funcionalidad de botón de exportación que dependía de controles de UI no disponibles en la versión actual de NinjaTrader
 
 ## [0.0.1] - 2025-03-08

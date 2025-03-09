@@ -481,9 +481,6 @@ namespace NinjaTrader.NinjaScript.Indicators
                     Print($"ERROR recuperando indicadores: {ex.Message}");
                 }
 
-                // Crear mapeo de indicadores a sus valores
-                var indicatorValues = new List<Tuple<string, Func<int, string>>>();
-
                 // Construir el encabezado del CSV con indicadores específicos para detección de patrones
                 List<string> header = new List<string> 
                 { 
@@ -496,6 +493,8 @@ namespace NinjaTrader.NinjaScript.Indicators
                 
                 // Procesar indicadores adicionales para el encabezado
                 LogDebug("Procesando indicadores adicionales para encabezado...");
+                var extraIndicatorPlots = new List<Tuple<string, Indicator, int>>();
+                
                 foreach (var ind in otherIndicators)
                 {
                     try
@@ -510,21 +509,8 @@ namespace NinjaTrader.NinjaScript.Indicators
                             string headerName = $"{ind.Name}_{plotName}";
                             header.Add(headerName);
                             
-                            int finalPlotIndex = plotIndex;
-                            indicatorValues.Add(Tuple.Create(headerName, (Func<int, string>)(barsAgo => {
-                                try
-                                {
-                                    if (barsAgo < 0 || barsAgo >= BarsArray[0].Count)
-                                        return string.Empty;
-                                        
-                                    double value = ((ISeries<double>)ind.Values[finalPlotIndex])[barsAgo];
-                                    return value.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                                }
-                                catch
-                                {
-                                    return string.Empty;
-                                }
-                            })));
+                            // Guardar referencia al indicador y su índice de plot
+                            extraIndicatorPlots.Add(Tuple.Create(headerName, ind, plotIndex));
                         }
                     }
                     catch (Exception ex)
@@ -532,181 +518,192 @@ namespace NinjaTrader.NinjaScript.Indicators
                         Print($"ERROR al procesar indicador {ind.Name}: {ex.Message}");
                         string headerName = $"{ind.Name}_Value";
                         header.Add(headerName);
-                        indicatorValues.Add(Tuple.Create(headerName, (Func<int, string>)(_ => string.Empty)));
                     }
                 }
 
-                // Obtener el número total de barras
-                LogDebug("Determinando el número total de barras...");
-                int totalBarsInChart = 0;
+                // Obtener el número total de barras y limitar según la configuración
+                int totalBarsInChart = Bars.Count;
+                Print($"Total de barras disponibles: {totalBarsInChart}");
                 
-                try
+                if (totalBarsInChart <= 0)
                 {
-                    // Usar directamente Bars.Count
-                    totalBarsInChart = Bars.Count;
-                    Print($"Total de barras disponibles: {totalBarsInChart}");
-                    
-                    if (totalBarsInChart <= 0)
-                    {
-                        totalBarsInChart = CurrentBar + 1;
-                        Print($"Usando CurrentBar+1 como total: {totalBarsInChart}");
-                    }
-                    
-                    // Última opción: usar un valor por defecto
-                    if (totalBarsInChart <= 0)
-                    {
-                        totalBarsInChart = 1000;
-                        Print("No se pudo determinar el número exacto de barras, usando valor por defecto: 1000");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Print($"ERROR al obtener el total de barras: {ex.Message}");
-                    totalBarsInChart = 1000; // Valor por defecto si ocurre un error
+                    totalBarsInChart = CurrentBar + 1;
+                    Print($"Usando CurrentBar+1 como total: {totalBarsInChart}");
                 }
                 
                 // Limitar al máximo especificado por el usuario
                 int barsToExport = Math.Min(totalBarsInChart, MaxBarsToExport);
-                
-                Print($"Barras totales disponibles: {totalBarsInChart}, Barras a exportar: {barsToExport}");
-                LogDebug($"Procesando {barsToExport} barras para exportación...");
+                Print($"Barras a exportar: {barsToExport}");
 
-                // Lista para almacenar las filas
-                List<string> allRows = new List<string>();
+                // Calcular el índice inicial y final para la exportación (desde el más antiguo al más reciente)
+                // Este enfoque soluciona el problema de la limitación de barsAgo
+                int startIndex = Math.Max(0, totalBarsInChart - barsToExport);
+                int endIndex = totalBarsInChart - 1;
+                
+                Print($"Exportando desde índice {startIndex} hasta {endIndex} (total: {endIndex - startIndex + 1} barras)");
+                
+                // Lista para almacenar todas las filas en orden cronológico
+                List<string> csvRows = new List<string>();
+                
+                // Añadir encabezado como primera fila
+                csvRows.Add(string.Join(",", header));
                 int successfulRows = 0;
 
                 try
                 {
-                    // Escribir en el archivo CSV
-                    using (StreamWriter writer = new StreamWriter(fullPath))
+                    // Procesar barras desde la más antigua a la más reciente (orden cronológico)
+                    for (int barIndex = startIndex; barIndex <= endIndex; barIndex++)
                     {
-                        LogDebug("Archivo CSV abierto para escritura");
-                        writer.WriteLine(string.Join(",", header));
-                        LogDebug("Encabezado escrito en CSV");
-
-                        // Procesar barras desde la más reciente hacia atrás
-                        for (int i = 0; i < barsToExport; i++)
+                        List<string> row = new List<string>();
+                        
+                        try
                         {
-                            int barsAgo = Math.Min(i, CurrentBar);
+                            // Calcular indiceBarsArray como índice relativo a la serie de datos
+                            int indiceBarsArray = barIndex;
                             
-                            if (barsAgo >= BarsArray[0].Count)
-                            {
-                                LogDebug($"barsAgo ({barsAgo}) >= BarsArray[0].Count ({BarsArray[0].Count}) - Saliendo del bucle");
-                                break;
-                            }
-
-                            List<string> row = new List<string>();
+                            // Datos OHLCV básicos usando GetValueAt que es más robusto que el operador []
+                            row.Add(Time.GetValueAt(indiceBarsArray).ToString("yyyy-MM-dd HH:mm:ss"));
+                            row.Add(Open.GetValueAt(indiceBarsArray).ToString(System.Globalization.CultureInfo.InvariantCulture));
+                            row.Add(High.GetValueAt(indiceBarsArray).ToString(System.Globalization.CultureInfo.InvariantCulture));
+                            row.Add(Low.GetValueAt(indiceBarsArray).ToString(System.Globalization.CultureInfo.InvariantCulture));
+                            row.Add(Close.GetValueAt(indiceBarsArray).ToString(System.Globalization.CultureInfo.InvariantCulture));
+                            row.Add(volume.GetValueAt(indiceBarsArray).ToString(System.Globalization.CultureInfo.InvariantCulture));
                             
-                            try
+                            // Indicadores técnicos usando GetValueAt
+                            row.Add(fastEMA.GetValueAt(indiceBarsArray).ToString(System.Globalization.CultureInfo.InvariantCulture));
+                            row.Add(slowEMA.GetValueAt(indiceBarsArray).ToString(System.Globalization.CultureInfo.InvariantCulture));
+                            row.Add(rsi.GetValueAt(indiceBarsArray).ToString(System.Globalization.CultureInfo.InvariantCulture));
+                            row.Add(stoch.K.GetValueAt(indiceBarsArray).ToString(System.Globalization.CultureInfo.InvariantCulture));
+                            row.Add(stoch.D.GetValueAt(indiceBarsArray).ToString(System.Globalization.CultureInfo.InvariantCulture));
+                            row.Add(bbands.Upper.GetValueAt(indiceBarsArray).ToString(System.Globalization.CultureInfo.InvariantCulture));
+                            row.Add(bbands.Middle.GetValueAt(indiceBarsArray).ToString(System.Globalization.CultureInfo.InvariantCulture));
+                            row.Add(bbands.Lower.GetValueAt(indiceBarsArray).ToString(System.Globalization.CultureInfo.InvariantCulture));
+                            row.Add(macd.Default.GetValueAt(indiceBarsArray).ToString(System.Globalization.CultureInfo.InvariantCulture));
+                            row.Add(macd.Avg.GetValueAt(indiceBarsArray).ToString(System.Globalization.CultureInfo.InvariantCulture));
+                            row.Add(macd.Diff.GetValueAt(indiceBarsArray).ToString(System.Globalization.CultureInfo.InvariantCulture));
+                            row.Add(atr.GetValueAt(indiceBarsArray).ToString(System.Globalization.CultureInfo.InvariantCulture));
+                            row.Add(adx.GetValueAt(indiceBarsArray).ToString(System.Globalization.CultureInfo.InvariantCulture));
+                            row.Add(adxPlus.GetValueAt(indiceBarsArray).ToString(System.Globalization.CultureInfo.InvariantCulture));
+                            row.Add(adxMinus.GetValueAt(indiceBarsArray).ToString(System.Globalization.CultureInfo.InvariantCulture));
+                            
+                            // Características adicionales para detección de patrones
+                            // EMACrossover: 1 cuando FastEMA cruza por encima de SlowEMA, -1 cuando cruza por debajo, 0 en otro caso
+                            double emaCrossover = 0;
+                            if (indiceBarsArray > 0 && indiceBarsArray < totalBarsInChart - 1)
                             {
-                                // Datos OHLCV básicos
-                                row.Add(Time[barsAgo].ToString("yyyy-MM-dd HH:mm:ss"));
-                                row.Add(Open[barsAgo].ToString(System.Globalization.CultureInfo.InvariantCulture));
-                                row.Add(High[barsAgo].ToString(System.Globalization.CultureInfo.InvariantCulture));
-                                row.Add(Low[barsAgo].ToString(System.Globalization.CultureInfo.InvariantCulture));
-                                row.Add(Close[barsAgo].ToString(System.Globalization.CultureInfo.InvariantCulture));
-                                row.Add(volume[barsAgo].ToString(System.Globalization.CultureInfo.InvariantCulture));
+                                double fastEMAcurrent = fastEMA.GetValueAt(indiceBarsArray);
+                                double slowEMAcurrent = slowEMA.GetValueAt(indiceBarsArray);
+                                double fastEMAprevious = fastEMA.GetValueAt(indiceBarsArray - 1);
+                                double slowEMAprevious = slowEMA.GetValueAt(indiceBarsArray - 1);
                                 
-                                // Indicadores técnicos
-                                row.Add(fastEMA[barsAgo].ToString(System.Globalization.CultureInfo.InvariantCulture));
-                                row.Add(slowEMA[barsAgo].ToString(System.Globalization.CultureInfo.InvariantCulture));
-                                row.Add(rsi[barsAgo].ToString(System.Globalization.CultureInfo.InvariantCulture));
-                                row.Add(stoch.K[barsAgo].ToString(System.Globalization.CultureInfo.InvariantCulture));
-                                row.Add(stoch.D[barsAgo].ToString(System.Globalization.CultureInfo.InvariantCulture));
-                                row.Add(bbands.Upper[barsAgo].ToString(System.Globalization.CultureInfo.InvariantCulture));
-                                row.Add(bbands.Middle[barsAgo].ToString(System.Globalization.CultureInfo.InvariantCulture));
-                                row.Add(bbands.Lower[barsAgo].ToString(System.Globalization.CultureInfo.InvariantCulture));
-                                row.Add(macd.Default[barsAgo].ToString(System.Globalization.CultureInfo.InvariantCulture));
-                                row.Add(macd.Avg[barsAgo].ToString(System.Globalization.CultureInfo.InvariantCulture));
-                                row.Add(macd.Diff[barsAgo].ToString(System.Globalization.CultureInfo.InvariantCulture));
-                                row.Add(atr[barsAgo].ToString(System.Globalization.CultureInfo.InvariantCulture));
-                                row.Add(adx[barsAgo].ToString(System.Globalization.CultureInfo.InvariantCulture));
-                                row.Add(adxPlus[barsAgo].ToString(System.Globalization.CultureInfo.InvariantCulture));
-                                row.Add(adxMinus[barsAgo].ToString(System.Globalization.CultureInfo.InvariantCulture));
+                                if (fastEMAcurrent > slowEMAcurrent && fastEMAprevious <= slowEMAprevious)
+                                    emaCrossover = 1;
+                                else if (fastEMAcurrent < slowEMAcurrent && fastEMAprevious >= slowEMAprevious)
+                                    emaCrossover = -1;
+                            }
+                            row.Add(emaCrossover.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                            
+                            // PriceToSlowEMA: Diferencia porcentual entre precio de cierre y EMA lenta
+                            double closePrice = Close.GetValueAt(indiceBarsArray);
+                            double slowEMAvalue = slowEMA.GetValueAt(indiceBarsArray);
+                            double priceToEma = (closePrice - slowEMAvalue) / slowEMAvalue;
+                            row.Add(priceToEma.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                            
+                            // BarType: 1 para alcista, -1 para bajista, 0 para doji
+                            double barType = 0;
+                            double openPrice = Open.GetValueAt(indiceBarsArray);
+                            if (closePrice > openPrice)
+                                barType = 1;
+                            else if (closePrice < openPrice)
+                                barType = -1;
+                            row.Add(barType.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                            
+                            // Detectar Swing High - Máximo local
+                            bool isSwingHigh = false;
+                            if (indiceBarsArray > 2 && indiceBarsArray < totalBarsInChart - 2)
+                            {
+                                double highValue = High.GetValueAt(indiceBarsArray);
+                                double highPrev1 = High.GetValueAt(indiceBarsArray - 1);
+                                double highNext1 = High.GetValueAt(indiceBarsArray + 1);
+                                double highNext2 = High.GetValueAt(indiceBarsArray + 2);
                                 
-                                // Características adicionales para detección de patrones
-                                // EMACrossover: 1 cuando FastEMA cruza por encima de SlowEMA, -1 cuando cruza por debajo, 0 en otro caso
-                                double emaCrossover = 0;
-                                if (barsAgo < BarsArray[0].Count - 1)
+                                isSwingHigh = highValue > highPrev1 && highValue > highNext1 && highValue > highNext2;
+                            }
+                            row.Add(isSwingHigh ? "1" : "0");
+                            
+                            // Detectar Swing Low - Mínimo local
+                            bool isSwingLow = false;
+                            if (indiceBarsArray > 2 && indiceBarsArray < totalBarsInChart - 2)
+                            {
+                                double lowValue = Low.GetValueAt(indiceBarsArray);
+                                double lowPrev1 = Low.GetValueAt(indiceBarsArray - 1);
+                                double lowNext1 = Low.GetValueAt(indiceBarsArray + 1);
+                                double lowNext2 = Low.GetValueAt(indiceBarsArray + 2);
+                                
+                                isSwingLow = lowValue < lowPrev1 && lowValue < lowNext1 && lowValue < lowNext2;
+                            }
+                            row.Add(isSwingLow ? "1" : "0");
+                            
+                            // RangePercent - Tamaño del rango de la vela como porcentaje
+                            double highPrice = High.GetValueAt(indiceBarsArray);
+                            double lowPrice = Low.GetValueAt(indiceBarsArray);
+                            double rangePercent = (highPrice - lowPrice) / lowPrice;
+                            row.Add(rangePercent.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                            
+                            // Añadir valores de indicadores adicionales
+                            foreach (var indicatorInfo in extraIndicatorPlots)
+                            {
+                                try 
                                 {
-                                    if (fastEMA[barsAgo] > slowEMA[barsAgo] && fastEMA[barsAgo + 1] <= slowEMA[barsAgo + 1])
-                                        emaCrossover = 1;
-                                    else if (fastEMA[barsAgo] < slowEMA[barsAgo] && fastEMA[barsAgo + 1] >= slowEMA[barsAgo + 1])
-                                        emaCrossover = -1;
+                                    string headerName = indicatorInfo.Item1;
+                                    Indicator indicator = indicatorInfo.Item2;
+                                    int plotIndex = indicatorInfo.Item3;
+                                    
+                                    // Obtener la serie de valores del indicador
+                                    ISeries<double> series = indicator.Values[plotIndex] as ISeries<double>;
+                                    
+                                    if (series != null && indiceBarsArray < series.Count)
+                                    {
+                                        double value = series.GetValueAt(indiceBarsArray);
+                                        row.Add(value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                                    }
+                                    else
+                                    {
+                                        row.Add(string.Empty);
+                                    }
                                 }
-                                row.Add(emaCrossover.ToString(System.Globalization.CultureInfo.InvariantCulture));
-                                
-                                // PriceToSlowEMA: Diferencia porcentual entre precio de cierre y EMA lenta
-                                double priceToEma = (Close[barsAgo] - slowEMA[barsAgo]) / slowEMA[barsAgo] * 100;
-                                row.Add(priceToEma.ToString(System.Globalization.CultureInfo.InvariantCulture));
-                                
-                                // BarType: 1 para alcista, -1 para bajista, 0 para doji
-                                double barType = 0;
-                                if (Close[barsAgo] > Open[barsAgo])
-                                    barType = 1;
-                                else if (Close[barsAgo] < Open[barsAgo])
-                                    barType = -1;
-                                row.Add(barType.ToString(System.Globalization.CultureInfo.InvariantCulture));
-                                
-                                // Detectar Swing High - Máximo local
-                                bool isSwingHigh = false;
-                                if (barsAgo < BarsArray[0].Count - 2 && barsAgo > 0)
+                                catch (Exception ex)
                                 {
-                                    isSwingHigh = High[barsAgo] > High[barsAgo - 1] && High[barsAgo] > High[barsAgo + 1] && 
-                                                  High[barsAgo] > High[barsAgo + 2];
-                                }
-                                row.Add(isSwingHigh ? "1" : "0");
-                                
-                                // Detectar Swing Low - Mínimo local
-                                bool isSwingLow = false;
-                                if (barsAgo < BarsArray[0].Count - 2 && barsAgo > 0)
-                                {
-                                    isSwingLow = Low[barsAgo] < Low[barsAgo - 1] && Low[barsAgo] < Low[barsAgo + 1] && 
-                                                 Low[barsAgo] < Low[barsAgo + 2];
-                                }
-                                row.Add(isSwingLow ? "1" : "0");
-                                
-                                // RangePercent - Tamaño del rango de la vela como porcentaje
-                                double rangePercent = (High[barsAgo] - Low[barsAgo]) / Low[barsAgo] * 100;
-                                row.Add(rangePercent.ToString(System.Globalization.CultureInfo.InvariantCulture));
-                                
-                                // Añadir valores de indicadores adicionales
-                                foreach (var valueFunc in indicatorValues)
-                                {
-                                    string value = valueFunc.Item2(barsAgo);
-                                    row.Add(value);
-                                }
-                                
-                                allRows.Add(string.Join(",", row));
-                                successfulRows++;
-                                
-                                // Mostrar progreso cada 1000 barras
-                                if (successfulRows % 1000 == 0)
-                                {
-                                    Print($"Procesadas {successfulRows} barras...");
+                                    Print($"Error al obtener valor de indicador adicional: {ex.Message}");
+                                    row.Add(string.Empty);
                                 }
                             }
-                            catch (Exception ex)
+                            
+                            csvRows.Add(string.Join(",", row));
+                            successfulRows++;
+                            
+                            // Mostrar progreso cada 1000 barras
+                            if (successfulRows % 1000 == 0)
                             {
-                                Print($"ERROR al procesar barra con barsAgo={barsAgo}: {ex.Message}");
-                                continue; // Continuar con la siguiente barra
+                                Print($"Procesadas {successfulRows} barras de {barsToExport}...");
                             }
                         }
-
-                        LogDebug($"Escribiendo {allRows.Count} filas en orden cronológico...");
-                        
-                        // Escribir filas en orden cronológico (invertido)
-                        for (int i = allRows.Count - 1; i >= 0; i--)
+                        catch (Exception ex)
                         {
-                            writer.WriteLine(allRows[i]);
+                            Print($"ERROR al procesar barra con índice={barIndex}: {ex.Message}");
+                            continue; // Continuar con la siguiente barra
                         }
-                        
-                        LogDebug("Todas las filas escritas en el archivo");
                     }
 
-                    Print($"¡EXPORTACIÓN COMPLETADA! Datos exportados: {allRows.Count} barras a {fullPath}");
+                    LogDebug($"Escribiendo {csvRows.Count} filas al archivo CSV...");
+                    
+                    // Escribir todas las filas al archivo
+                    File.WriteAllLines(fullPath, csvRows);
+                    
+                    Print($"¡EXPORTACIÓN COMPLETADA! Datos exportados: {successfulRows} barras a {fullPath}");
+                    
                     try {
-                        Draw.TextFixed(this, "ExportStatus", $"Datos exportados: {allRows.Count} barras\nRuta: {fullPath}", TextPosition.BottomRight);
+                        Draw.TextFixed(this, "ExportStatus", $"Datos exportados: {successfulRows} barras\nRuta: {fullPath}", TextPosition.BottomRight);
                     } catch (Exception ex) {
                         Print($"ERROR al mostrar mensaje en gráfico: {ex.Message}");
                     }

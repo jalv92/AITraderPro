@@ -1,0 +1,38 @@
+{
+    "training_results": {
+        "episodes": 2000,
+        "rewards": [
+            -3.629033433294044e+16,
+            2.957616622672232e+16,
+            73859352449355.55
+        ]
+    },
+    "evaluation": {
+        "episodes": 10,
+        "rewards": [
+            50.0,
+            50.0,
+            50.0,
+            50.0,
+            50.0,
+            50.0,
+            50.0,
+            50.0,
+            50.0,
+            50.0
+        ],
+        "average_reward": 50.0
+    },
+    "config": {
+        "hidden_layers": [
+            256,
+            128,
+            64
+        ],
+        "learning_rate": 0.00025,
+        "batch_size": 64,
+        "curiosity_weight": 0.1,
+        "dynamic_network": true
+    },
+    "training_time": 1935.448425
+}

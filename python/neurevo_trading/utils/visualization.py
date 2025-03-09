@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union, Any
 import matplotlib.dates as mdates
 import matplotlib.patches as patches
 from matplotlib.ticker import MaxNLocator
@@ -535,3 +535,275 @@ def plot_pattern_distribution(patterns: List[Dict], title: str = 'Pattern Distri
         plt.close()
     else:
         plt.show()
+
+def plot_equity_curve(equity_curve: List[float], title: str = "Equity Curve", figsize: Tuple[int, int] = (12, 6), 
+                    show: bool = True, save_path: Optional[str] = None):
+    """
+    Grafica la curva de equity de una estrategia.
+    
+    Args:
+        equity_curve: Lista con valores de equity
+        title: Título del gráfico
+        figsize: Tamaño de la figura
+        show: Si es True, muestra la figura
+        save_path: Ruta donde guardar la figura (opcional)
+    """
+    plt.figure(figsize=figsize)
+    plt.plot(equity_curve)
+    
+    # Calcular la tendencia (línea recta)
+    x = np.arange(len(equity_curve))
+    z = np.polyfit(x, equity_curve, 1)
+    p = np.poly1d(z)
+    plt.plot(x, p(x), "r--", alpha=0.8, label=f"Tendencia: {z[0]:.2f}x + {z[1]:.2f}")
+    
+    # Calcular el ángulo de la pendiente en grados
+    angle = np.degrees(np.arctan(z[0] / (equity_curve[0] / 100)))
+    
+    # Calcular drawdown
+    max_equity = np.maximum.accumulate(equity_curve)
+    drawdown = (max_equity - equity_curve) / max_equity
+    max_drawdown = np.max(drawdown) if len(drawdown) > 0 else 0
+    
+    # Calcular retorno total
+    total_return = (equity_curve[-1] / equity_curve[0] - 1) if equity_curve[0] > 0 else 0
+    
+    plt.title(f"{title}\nÁngulo: {angle:.2f}°, Retorno: {total_return:.2%}, Max Drawdown: {max_drawdown:.2%}")
+    plt.xlabel("Pasos")
+    plt.ylabel("Equity")
+    plt.grid(True)
+    plt.legend()
+    
+    # Añadir visualización de drawdown
+    ax2 = plt.gca().twinx()
+    ax2.fill_between(range(len(drawdown)), 0, drawdown, alpha=0.3, color='red')
+    ax2.set_ylabel('Drawdown', color='red')
+    ax2.tick_params(axis='y', labelcolor='red')
+    ax2.set_ylim(0, max(0.01, max_drawdown * 1.5))  # Ajustar escala
+    
+    if save_path:
+        plt.savefig(save_path)
+    
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
+def plot_trades(trades: List[Dict[str, Any]], prices: pd.Series, figsize: Tuple[int, int] = (12, 6),
+               show: bool = True, save_path: Optional[str] = None):
+    """
+    Grafica las operaciones realizadas sobre el gráfico de precios.
+    
+    Args:
+        trades: Lista de operaciones
+        prices: Serie temporal de precios
+        figsize: Tamaño de la figura
+        show: Si es True, muestra la figura
+        save_path: Ruta donde guardar la figura (opcional)
+    """
+    plt.figure(figsize=figsize)
+    
+    # Graficar precios
+    plt.plot(prices.index, prices.values, 'k-', alpha=0.7)
+    
+    # Graficar operaciones
+    for trade in trades:
+        # Verificar que el trade tenga la información necesaria
+        if 'entry_date' not in trade or 'exit_date' not in trade:
+            continue
+            
+        entry_date = trade['entry_date']
+        exit_date = trade.get('exit_date', None)
+        
+        if exit_date is None:  # Posición abierta
+            continue
+            
+        # Obtener precios de entrada y salida
+        entry_price = trade['entry_price']
+        exit_price = trade['exit_price']
+        
+        # Determinar color basado en el tipo de operación y el resultado
+        trade_type = trade.get('type', None)
+        pnl = trade.get('pnl', 0)
+        
+        if trade_type == 'long':
+            color = 'green' if pnl > 0 else 'red'
+            marker_entry = '^'  # Triángulo hacia arriba para entradas long
+            marker_exit = 'v' if pnl < 0 else 'o'  # Triángulo abajo para salidas con pérdida, círculo para ganancias
+        else:  # short
+            color = 'green' if pnl > 0 else 'red'
+            marker_entry = 'v'  # Triángulo hacia abajo para entradas short
+            marker_exit = '^' if pnl < 0 else 'o'  # Triángulo arriba para salidas con pérdida, círculo para ganancias
+        
+        # Graficar puntos de entrada y salida
+        plt.plot(entry_date, entry_price, marker=marker_entry, color=color, markersize=10)
+        plt.plot(exit_date, exit_price, marker=marker_exit, color=color, markersize=10)
+        
+        # Conectar entrada y salida con línea
+        plt.plot([entry_date, exit_date], [entry_price, exit_price], color=color, linestyle='--', alpha=0.7)
+    
+    plt.title('Precio y Operaciones')
+    plt.xlabel('Fecha')
+    plt.ylabel('Precio')
+    plt.grid(True)
+    
+    if save_path:
+        plt.savefig(save_path)
+    
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
+def plot_performance_metrics(results: Dict[str, Any], figsize: Tuple[int, int] = (15, 10),
+                           show: bool = True, save_path: Optional[str] = None):
+    """
+    Grafica métricas de rendimiento de la estrategia.
+    
+    Args:
+        results: Diccionario con resultados de la estrategia
+        figsize: Tamaño de la figura
+        show: Si es True, muestra la figura
+        save_path: Ruta donde guardar la figura (opcional)
+    """
+    if 'equity_curve' not in results:
+        print("Error: No equity curve found in results")
+        return
+        
+    equity_curve = results['equity_curve']
+    trades = results.get('trades', [])
+    
+    plt.figure(figsize=figsize)
+    
+    # Subplot 1: Equity Curve
+    plt.subplot(2, 2, 1)
+    plot_equity_curve(equity_curve, title="Curva de Equity", show=False)
+    
+    # Subplot 2: Drawdown
+    plt.subplot(2, 2, 2)
+    max_equity = np.maximum.accumulate(equity_curve)
+    drawdown = (max_equity - equity_curve) / max_equity
+    plt.fill_between(range(len(drawdown)), 0, drawdown, color='red', alpha=0.5)
+    plt.title(f"Drawdown (Max: {np.max(drawdown):.2%})")
+    plt.xlabel("Pasos")
+    plt.ylabel("Drawdown")
+    plt.grid(True)
+    
+    # Subplot 3: Histogram of trade PnL
+    plt.subplot(2, 2, 3)
+    if trades:
+        pnl_values = [trade.get('pnl', 0) for trade in trades if 'pnl' in trade]
+        if pnl_values:
+            sns.histplot(pnl_values, kde=True)
+            plt.axvline(0, color='k', linestyle='--')
+            plt.title(f"Distribución de PnL por Operación (Total: {len(pnl_values)})")
+            plt.xlabel("PnL")
+            plt.grid(True)
+    
+    # Subplot 4: Trade Win/Loss Metrics
+    plt.subplot(2, 2, 4)
+    if trades:
+        pnl_values = [trade.get('pnl', 0) for trade in trades if 'pnl' in trade]
+        if pnl_values:
+            wins = sum(1 for pnl in pnl_values if pnl > 0)
+            losses = sum(1 for pnl in pnl_values if pnl <= 0)
+            win_rate = wins / len(pnl_values) if pnl_values else 0
+            
+            avg_win = np.mean([pnl for pnl in pnl_values if pnl > 0]) if wins > 0 else 0
+            avg_loss = np.mean([pnl for pnl in pnl_values if pnl <= 0]) if losses > 0 else 0
+            
+            profit_factor = abs(sum(pnl for pnl in pnl_values if pnl > 0) / sum(pnl for pnl in pnl_values if pnl < 0)) if sum(pnl for pnl in pnl_values if pnl < 0) != 0 else np.inf
+            
+            metrics = {
+                "Win Rate": win_rate,
+                "Profit Factor": profit_factor,
+                "Avg Win": avg_win,
+                "Avg Loss": abs(avg_loss)
+            }
+            
+            plt.bar(range(len(metrics)), list(metrics.values()), align='center')
+            plt.xticks(range(len(metrics)), list(metrics.keys()))
+            plt.title("Métricas de Operaciones")
+            plt.grid(True)
+            
+            # Añadir valores sobre las barras
+            for i, v in enumerate(metrics.values()):
+                if i == 0:  # Win Rate
+                    plt.text(i, v, f"{v:.2%}", ha='center', va='bottom')
+                elif i == 1:  # Profit Factor
+                    plt.text(i, v, f"{v:.2f}", ha='center', va='bottom')
+                else:  # Avg Win/Loss
+                    plt.text(i, v, f"{v:.2f}", ha='center', va='bottom')
+    
+    plt.tight_layout()
+    
+    if save_path:
+        plt.savefig(save_path)
+    
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
+def plot_training_progress(training_results: Dict[str, Any], figsize: Tuple[int, int] = (12, 8),
+                          show: bool = True, save_path: Optional[str] = None):
+    """
+    Grafica el progreso del entrenamiento.
+    
+    Args:
+        training_results: Resultados del entrenamiento
+        figsize: Tamaño de la figura
+        show: Si es True, muestra la figura
+        save_path: Ruta donde guardar la figura (opcional)
+    """
+    if 'rewards' not in training_results:
+        print("Error: No rewards found in training results")
+        return
+        
+    rewards = training_results['rewards']
+    avg_drawdowns = training_results.get('avg_drawdowns', [])
+    
+    plt.figure(figsize=figsize)
+    
+    # Subplot 1: Rewards
+    plt.subplot(2, 1, 1)
+    plt.plot(rewards)
+    plt.title("Recompensas durante Entrenamiento")
+    plt.xlabel("Episodio")
+    plt.ylabel("Recompensa")
+    plt.grid(True)
+    
+    # Añadir línea de tendencia
+    if len(rewards) > 1:
+        x = np.arange(len(rewards))
+        z = np.polyfit(x, rewards, 1)
+        p = np.poly1d(z)
+        plt.plot(x, p(x), "r--", alpha=0.8, label=f"Tendencia: {z[0]:.4f}x + {z[1]:.2f}")
+        plt.legend()
+    
+    # Subplot 2: Drawdowns if available
+    if avg_drawdowns:
+        plt.subplot(2, 1, 2)
+        plt.plot(avg_drawdowns)
+        plt.title("Drawdown Promedio durante Entrenamiento")
+        plt.xlabel("Episodio")
+        plt.ylabel("Drawdown Promedio")
+        plt.grid(True)
+        
+        # Añadir línea de tendencia
+        if len(avg_drawdowns) > 1:
+            x = np.arange(len(avg_drawdowns))
+            z = np.polyfit(x, avg_drawdowns, 1)
+            p = np.poly1d(z)
+            plt.plot(x, p(x), "r--", alpha=0.8, label=f"Tendencia: {z[0]:.4f}x + {z[1]:.2f}")
+            plt.legend()
+    
+    plt.tight_layout()
+    
+    if save_path:
+        plt.savefig(save_path)
+    
+    if show:
+        plt.show()
+    else:
+        plt.close()

@@ -1,0 +1,185 @@
+2025-03-09 01:23:06,696 - INFO - Importando neurevo...
+2025-03-09 01:23:06,697 - INFO - Neurevo importado correctamente
+2025-03-09 01:23:06,841 - INFO - === NeurEvo Trading - Entrenamiento Optimizado ===
+2025-03-09 01:23:06,844 - INFO - Archivo de datos: data/combined_data_optimized.csv
+2025-03-09 01:23:06,845 - INFO - Episodios: 20
+2025-03-09 01:23:06,845 - INFO - Optimización de memoria: Activada
+2025-03-09 01:23:06,845 - INFO - Batch size establecido a: 256
+2025-03-09 01:23:06,845 - INFO - Cargando datos desde data/combined_data_optimized.csv...
+2025-03-09 01:23:06,846 - INFO - Cargando datos desde data/combined_data_optimized.csv
+2025-03-09 01:23:06,887 - INFO - Columnas después de convertir a minúsculas: ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'fastema', 'slowema', 'rsi', 'stoch_k', 'stoch_d', 'bb_upper', 'bb_middle', 'bb_lower', 'macd', 'macd_signal', 'macd_hist', 'atr', 'adx', 'di_plus', 'di_minus', 'emacrossover', 'pricetoslowema', 'bartype', 'swinghigh', 'swinglow', 'rangepercent']
+2025-03-09 01:23:06,901 - INFO - Datos cargados: 14161 filas, 26 columnas
+2025-03-09 01:23:06,903 - INFO - Uso de memoria del DataFrame: 2.92 MB
+2025-03-09 01:23:06,904 - INFO - Preparando datos para entrenamiento...
+2025-03-09 01:23:06,918 - INFO - Añadidos 6 indicadores técnicos
+2025-03-09 01:23:06,921 - INFO - Datos preparados: 14112 filas con 32 columnas
+2025-03-09 01:23:06,921 - INFO - Datos preparados: 14112 filas, 32 características
+2025-03-09 01:23:06,922 - INFO - Liberando memoria del DataFrame original...
+2025-03-09 01:23:06,982 - INFO - Creando entorno de trading...
+2025-03-09 01:23:07,010 - INFO - Inicializando adaptador NeurEvo...
+2025-03-09 01:23:07,030 - INFO - Creando cerebro NeurEvo...
+2025-03-09 01:23:07,030 - INFO - Registrando entorno con cerebro...
+2025-03-09 01:23:07,031 - INFO - Creando agente...
+2025-03-09 01:23:07,038 - INFO - Checkpoint guardado en: models\neurevo_model_20250309_012307_checkpoint.pt
+2025-03-09 01:23:07,038 - INFO - 
+=== Iniciando Entrenamiento ===
+2025-03-09 01:23:07,038 - INFO - Objetivo: Optimizar trading con ángulo de curva ~45.0°
+2025-03-09 01:23:08,935 - WARNING - 
+Entrenamiento interrumpido por el usuario
+2025-03-09 01:23:08,935 - INFO - Entrenamiento completado en 1.90 segundos
+2025-03-09 01:23:08,946 - INFO - Modelo final guardado en: models\neurevo_model_20250309_012307.pt
+2025-03-09 01:23:08,946 - INFO - 
+=== Proceso Completo ===
+2025-03-09 01:23:08,947 - INFO - Tiempo total: 2.11 segundos
+2025-03-09 01:23:16,748 - INFO - Importando neurevo...
+2025-03-09 01:23:16,749 - INFO - Neurevo importado correctamente
+2025-03-09 01:23:16,850 - INFO - === NeurEvo Trading - Entrenamiento Optimizado ===
+2025-03-09 01:23:16,852 - INFO - Archivo de datos: data/combined_data_optimized.csv
+2025-03-09 01:23:16,852 - INFO - Episodios: 5
+2025-03-09 01:23:16,852 - INFO - Optimización de memoria: Desactivada
+2025-03-09 01:23:16,852 - INFO - Batch size establecido a: 256
+2025-03-09 01:23:16,852 - INFO - Cargando datos desde data/combined_data_optimized.csv...
+2025-03-09 01:23:16,852 - INFO - Cargando datos desde data/combined_data_optimized.csv
+2025-03-09 01:23:16,889 - INFO - Columnas después de convertir a minúsculas: ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'fastema', 'slowema', 'rsi', 'stoch_k', 'stoch_d', 'bb_upper', 'bb_middle', 'bb_lower', 'macd', 'macd_signal', 'macd_hist', 'atr', 'adx', 'di_plus', 'di_minus', 'emacrossover', 'pricetoslowema', 'bartype', 'swinghigh', 'swinglow', 'rangepercent']
+2025-03-09 01:23:16,901 - INFO - Datos cargados: 14161 filas, 26 columnas
+2025-03-09 01:23:16,902 - INFO - Preparando datos para entrenamiento...
+2025-03-09 01:23:16,917 - INFO - Añadidos 6 indicadores técnicos
+2025-03-09 01:23:16,920 - INFO - Datos preparados: 14112 filas con 32 columnas
+2025-03-09 01:23:16,920 - INFO - Datos preparados: 14112 filas, 32 características
+2025-03-09 01:23:16,921 - INFO - Creando entorno de trading...
+2025-03-09 01:23:16,947 - INFO - Inicializando adaptador NeurEvo...
+2025-03-09 01:23:16,966 - INFO - Creando cerebro NeurEvo...
+2025-03-09 01:23:16,966 - INFO - Registrando entorno con cerebro...
+2025-03-09 01:23:16,967 - INFO - Creando agente...
+2025-03-09 01:23:16,976 - INFO - Checkpoint guardado en: models\neurevo_model_20250309_012316_checkpoint.pt
+2025-03-09 01:23:16,976 - INFO - 
+=== Iniciando Entrenamiento ===
+2025-03-09 01:23:16,977 - INFO - Objetivo: Optimizar trading con ángulo de curva ~45.0°
+2025-03-09 01:23:18,289 - WARNING - 
+Entrenamiento interrumpido por el usuario
+2025-03-09 01:23:18,289 - INFO - Entrenamiento completado en 1.31 segundos
+2025-03-09 01:23:18,306 - INFO - Modelo final guardado en: models\neurevo_model_20250309_012316.pt
+2025-03-09 01:23:18,307 - INFO - 
+=== Proceso Completo ===
+2025-03-09 01:23:18,307 - INFO - Tiempo total: 1.46 segundos
+2025-03-09 01:24:17,754 - INFO - Importando neurevo...
+2025-03-09 01:24:17,755 - INFO - Neurevo importado correctamente
+2025-03-09 01:24:17,854 - INFO - === NeurEvo Trading - Entrenamiento Optimizado ===
+2025-03-09 01:24:17,856 - INFO - Archivo de datos: data/combined_data_optimized.csv
+2025-03-09 01:24:17,857 - INFO - Episodios: 5
+2025-03-09 01:24:17,857 - INFO - Optimización de memoria: Desactivada
+2025-03-09 01:24:17,857 - INFO - Batch size establecido a: 256
+2025-03-09 01:24:17,857 - INFO - Cargando datos desde data/combined_data_optimized.csv...
+2025-03-09 01:24:17,858 - INFO - Cargando datos desde data/combined_data_optimized.csv
+2025-03-09 01:24:17,895 - INFO - Columnas después de convertir a minúsculas: ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'fastema', 'slowema', 'rsi', 'stoch_k', 'stoch_d', 'bb_upper', 'bb_middle', 'bb_lower', 'macd', 'macd_signal', 'macd_hist', 'atr', 'adx', 'di_plus', 'di_minus', 'emacrossover', 'pricetoslowema', 'bartype', 'swinghigh', 'swinglow', 'rangepercent']
+2025-03-09 01:24:17,907 - INFO - Datos cargados: 14161 filas, 26 columnas
+2025-03-09 01:24:17,908 - INFO - Preparando datos para entrenamiento...
+2025-03-09 01:24:17,921 - INFO - Añadidos 6 indicadores técnicos
+2025-03-09 01:24:17,924 - INFO - Datos preparados: 14112 filas con 32 columnas
+2025-03-09 01:24:17,925 - INFO - Datos preparados: 14112 filas, 32 características
+2025-03-09 01:24:17,925 - INFO - Creando entorno de trading...
+2025-03-09 01:24:17,948 - INFO - Inicializando adaptador NeurEvo...
+2025-03-09 01:24:18,753 - INFO - Creando cerebro NeurEvo...
+2025-03-09 01:24:18,754 - INFO - Registrando entorno con cerebro...
+2025-03-09 01:24:18,754 - INFO - Creando agente...
+2025-03-09 01:24:18,762 - INFO - Checkpoint guardado en: models\neurevo_model_20250309_012418_checkpoint.pt
+2025-03-09 01:24:18,762 - INFO - 
+=== Iniciando Entrenamiento ===
+2025-03-09 01:24:18,762 - INFO - Objetivo: Optimizar trading con ángulo de curva ~45.0°
+2025-03-09 01:31:36,337 - INFO - FakeTensor cache stats:
+2025-03-09 01:31:36,338 - INFO -   cache_hits: 0
+2025-03-09 01:31:36,338 - INFO -   cache_misses: 0
+2025-03-09 01:34:32,560 - INFO - Importando neurevo...
+2025-03-09 01:34:32,561 - INFO - Neurevo importado correctamente
+2025-03-09 01:34:32,669 - INFO - === NeurEvo Trading - Entrenamiento Optimizado ===
+2025-03-09 01:34:32,671 - INFO - Archivo de datos: data/combined_data_optimized.csv
+2025-03-09 01:34:32,671 - INFO - Episodios: 3
+2025-03-09 01:34:32,671 - INFO - Optimización de memoria: Desactivada
+2025-03-09 01:34:32,672 - INFO - Batch size establecido a: 256
+2025-03-09 01:34:32,672 - INFO - Cargando datos desde data/combined_data_optimized.csv...
+2025-03-09 01:34:32,672 - INFO - Cargando datos desde data/combined_data_optimized.csv
+2025-03-09 01:34:32,708 - INFO - Columnas después de convertir a minúsculas: ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'fastema', 'slowema', 'rsi', 'stoch_k', 'stoch_d', 'bb_upper', 'bb_middle', 'bb_lower', 'macd', 'macd_signal', 'macd_hist', 'atr', 'adx', 'di_plus', 'di_minus', 'emacrossover', 'pricetoslowema', 'bartype', 'swinghigh', 'swinglow', 'rangepercent']
+2025-03-09 01:34:32,722 - INFO - Datos cargados: 14161 filas, 26 columnas
+2025-03-09 01:34:32,722 - INFO - Limitando datos a 1000 filas (de 14161 totales)
+2025-03-09 01:34:32,723 - INFO - Preparando datos para entrenamiento...
+2025-03-09 01:34:32,730 - INFO - Añadidos 6 indicadores técnicos
+2025-03-09 01:34:32,732 - INFO - Datos preparados: 951 filas con 32 columnas
+2025-03-09 01:34:32,732 - INFO - Datos preparados: 951 filas, 32 características
+2025-03-09 01:34:32,733 - INFO - Creando entorno de trading...
+2025-03-09 01:34:32,760 - INFO - Inicializando adaptador NeurEvo...
+2025-03-09 01:34:33,566 - INFO - Creando cerebro NeurEvo...
+2025-03-09 01:34:33,567 - INFO - Registrando entorno con cerebro...
+2025-03-09 01:34:33,567 - INFO - Creando agente...
+2025-03-09 01:34:33,573 - INFO - Checkpoint guardado en: models\neurevo_model_20250309_013433_checkpoint.pt
+2025-03-09 01:34:33,573 - INFO - 
+=== Iniciando Entrenamiento ===
+2025-03-09 01:34:33,573 - INFO - Objetivo: Optimizar trading con ángulo de curva ~45.0°
+2025-03-09 01:34:34,347 - WARNING - 
+Entrenamiento interrumpido por el usuario
+2025-03-09 01:34:34,347 - INFO - Entrenamiento completado en 0.77 segundos
+2025-03-09 01:34:34,354 - INFO - Modelo final guardado en: models\neurevo_model_20250309_013433.pt
+2025-03-09 01:34:34,355 - INFO - 
+=== Proceso Completo ===
+2025-03-09 01:34:34,355 - INFO - Tiempo total: 1.69 segundos
+2025-03-09 01:35:43,008 - INFO - Importando neurevo...
+2025-03-09 01:35:43,009 - INFO - Neurevo importado correctamente
+2025-03-09 01:35:43,114 - INFO - === NeurEvo Trading - Entrenamiento Optimizado ===
+2025-03-09 01:35:43,115 - INFO - Archivo de datos: data/combined_data_optimized.csv
+2025-03-09 01:35:43,115 - INFO - Episodios: 3
+2025-03-09 01:35:43,116 - INFO - Optimización de memoria: Desactivada
+2025-03-09 01:35:43,116 - INFO - Batch size establecido a: 256
+2025-03-09 01:35:43,116 - INFO - Cargando datos desde data/combined_data_optimized.csv...
+2025-03-09 01:35:43,116 - INFO - Cargando datos desde data/combined_data_optimized.csv
+2025-03-09 01:35:43,149 - INFO - Columnas después de convertir a minúsculas: ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'fastema', 'slowema', 'rsi', 'stoch_k', 'stoch_d', 'bb_upper', 'bb_middle', 'bb_lower', 'macd', 'macd_signal', 'macd_hist', 'atr', 'adx', 'di_plus', 'di_minus', 'emacrossover', 'pricetoslowema', 'bartype', 'swinghigh', 'swinglow', 'rangepercent']
+2025-03-09 01:35:43,161 - INFO - Datos cargados: 14161 filas, 26 columnas
+2025-03-09 01:35:43,161 - INFO - Limitando datos a 1000 filas (de 14161 totales)
+2025-03-09 01:35:43,162 - INFO - Preparando datos para entrenamiento...
+2025-03-09 01:35:43,169 - INFO - Añadidos 6 indicadores técnicos
+2025-03-09 01:35:43,170 - INFO - Datos preparados: 951 filas con 32 columnas
+2025-03-09 01:35:43,171 - INFO - Datos preparados: 951 filas, 32 características
+2025-03-09 01:35:43,171 - INFO - Creando entorno de trading...
+2025-03-09 01:35:43,194 - INFO - Inicializando adaptador NeurEvo...
+2025-03-09 01:35:43,998 - INFO - Creando cerebro NeurEvo...
+2025-03-09 01:35:43,999 - INFO - Registrando entorno con cerebro...
+2025-03-09 01:35:44,000 - INFO - Creando agente...
+2025-03-09 01:35:44,005 - INFO - Checkpoint guardado en: models\neurevo_model_20250309_013544_checkpoint.pt
+2025-03-09 01:35:44,006 - INFO - 
+=== Iniciando Entrenamiento ===
+2025-03-09 01:35:44,006 - INFO - Objetivo: Optimizar trading con ángulo de curva ~45.0°
+2025-03-09 01:36:43,472 - INFO - Episodio 3/3 (100.0%) - Recompensa: -9468.77, DrawDown: 0.00%, ETA: 0s
+2025-03-09 01:36:43,481 - INFO - Checkpoint guardado en: models\neurevo_model_20250309_013544_checkpoint.pt
+2025-03-09 01:36:43,481 - INFO - Entrenamiento completado en 59.47 segundos
+2025-03-09 01:36:43,491 - INFO - Modelo final guardado en: models\neurevo_model_20250309_013544.pt
+2025-03-09 01:36:43,492 - INFO - Evaluando modelo en 5 episodios...
+2025-03-09 01:36:43,492 - INFO - Episodio de evaluación 1/5...
+2025-03-09 01:50:43,116 - INFO - Importando neurevo...
+2025-03-09 01:50:43,117 - INFO - Neurevo importado correctamente
+2025-03-09 01:50:43,216 - INFO - === NeurEvo Trading - Entrenamiento Optimizado ===
+2025-03-09 01:50:43,220 - INFO - Archivo de datos: data/combined_data_optimized.csv
+2025-03-09 01:50:43,220 - INFO - Episodios: 3
+2025-03-09 01:50:43,220 - INFO - Optimización de memoria: Desactivada
+2025-03-09 01:50:43,221 - INFO - Batch size establecido a: 256
+2025-03-09 01:50:43,221 - INFO - Cargando datos desde data/combined_data_optimized.csv...
+2025-03-09 01:50:43,221 - INFO - Cargando datos desde data/combined_data_optimized.csv
+2025-03-09 01:50:43,262 - INFO - Columnas después de convertir a minúsculas: ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'fastema', 'slowema', 'rsi', 'stoch_k', 'stoch_d', 'bb_upper', 'bb_middle', 'bb_lower', 'macd', 'macd_signal', 'macd_hist', 'atr', 'adx', 'di_plus', 'di_minus', 'emacrossover', 'pricetoslowema', 'bartype', 'swinghigh', 'swinglow', 'rangepercent']
+2025-03-09 01:50:43,274 - INFO - Datos cargados: 14161 filas, 26 columnas
+2025-03-09 01:50:43,275 - INFO - Limitando datos a 500 filas (de 14161 totales)
+2025-03-09 01:50:43,276 - INFO - Preparando datos para entrenamiento...
+2025-03-09 01:50:43,282 - INFO - Añadidos 6 indicadores técnicos
+2025-03-09 01:50:43,283 - INFO - Datos preparados: 451 filas con 32 columnas
+2025-03-09 01:50:43,284 - INFO - Datos preparados: 451 filas, 32 características
+2025-03-09 01:50:43,284 - INFO - Creando entorno de trading...
+2025-03-09 01:50:43,308 - INFO - Inicializando adaptador NeurEvo...
+2025-03-09 01:50:44,120 - INFO - Creando cerebro NeurEvo...
+2025-03-09 01:50:44,120 - INFO - Registrando entorno con cerebro...
+2025-03-09 01:50:44,121 - INFO - Creando agente...
+2025-03-09 01:50:44,126 - INFO - Checkpoint guardado en: models\neurevo_model_20250309_015044_checkpoint.pt
+2025-03-09 01:50:44,127 - INFO - 
+=== Iniciando Entrenamiento ===
+2025-03-09 01:50:44,127 - INFO - Objetivo: Optimizar trading con ángulo de curva ~45.0°
+2025-03-09 01:51:11,250 - INFO - Episodio 3/3 (100.0%) - Recompensa: -21.72, DrawDown: 0.00%, ETA: 0s
+2025-03-09 01:51:11,256 - INFO - Checkpoint guardado en: models\neurevo_model_20250309_015044_checkpoint.pt
+2025-03-09 01:51:11,257 - INFO - Entrenamiento completado en 27.13 segundos
+2025-03-09 01:51:11,262 - INFO - Modelo final guardado en: models\neurevo_model_20250309_015044.pt
+2025-03-09 01:51:11,262 - INFO - Evaluando modelo en 5 episodios...
+2025-03-09 01:51:11,262 - INFO - Episodio de evaluación 1/5...

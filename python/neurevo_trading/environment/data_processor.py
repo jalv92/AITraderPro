@@ -3,8 +3,17 @@ import numpy as np
 import os
 from typing import Dict, List, Optional, Tuple, Union
 import logging
+import re
 
 from neurevo_trading.utils.feature_engineering import create_features
+
+# Configurar logging
+logger = logging.getLogger("DataProcessor")
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 class DataProcessor:
     """
@@ -12,124 +21,208 @@ class DataProcessor:
     Maneja la carga, limpieza y preparación de datos para el análisis y trading.
     """
     
-    def __init__(self, logger: Optional[logging.Logger] = None):
+    def __init__(self):
         """
         Inicializa el procesador de datos.
-        
-        Args:
-            logger: Logger opcional
         """
-        self.logger = logger or self._setup_default_logger()
+        self.required_columns = ['open', 'high', 'low', 'close']
+        self.datetime_format = '%Y-%m-%d %H:%M:%S'
         self.data_cache = {}
     
-    def _setup_default_logger(self) -> logging.Logger:
-        """Configura un logger por defecto si no se proporciona ninguno."""
-        logger = logging.getLogger("DataProcessor")
-        logger.setLevel(logging.INFO)
-        
-        # Crear manejador de consola si no existe
-        if not logger.handlers:
-            handler = logging.StreamHandler()
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-        
-        return logger
-    
-    def load_csv(self, filepath: str, cache: bool = True, 
-                date_column: str = 'Timestamp', parse_dates: bool = True) -> pd.DataFrame:
+    def load_csv(self, filepath: str, cache: bool = True, nrows: Optional[int] = None) -> pd.DataFrame:
         """
         Carga datos desde un archivo CSV.
         
         Args:
             filepath: Ruta al archivo CSV
             cache: Si es True, almacena el DataFrame en caché
-            date_column: Nombre de la columna de fecha/hora
-            parse_dates: Si es True, convierte la columna de fecha a datetime
+            nrows: Número máximo de filas a cargar (opcional)
             
         Returns:
             DataFrame con los datos cargados
         """
         try:
+            # Si se solicitan filas limitadas, no usar caché
+            if nrows is not None:
+                cache = False
+            
             if filepath in self.data_cache and cache:
-                self.logger.info(f"Usando datos en caché para {filepath}")
+                logger.info(f"Usando datos en caché para {filepath}")
                 return self.data_cache[filepath].copy()
             
-            self.logger.info(f"Cargando datos desde {filepath}")
+            logger.info(f"Cargando datos desde {filepath}")
             
-            # Cargar CSV
-            df = pd.read_csv(filepath)
+            # Cargar CSV (con opción de limitar filas)
+            if nrows is not None:
+                logger.info(f"Cargando solo {nrows} filas")
+                data = pd.read_csv(filepath, nrows=nrows)
+            else:
+                data = pd.read_csv(filepath)
             
-            # Configurar índice de tiempo si existe
-            if date_column in df.columns and parse_dates:
-                df[date_column] = pd.to_datetime(df[date_column])
-                df.set_index(date_column, inplace=True)
+            # Convertir nombres de columnas a minúsculas para consistencia
+            data.columns = [col.lower() for col in data.columns]
+            logger.info(f"Columnas después de convertir a minúsculas: {list(data.columns)}")
+            
+            # Verificar si hay columna de timestamp y convertirla a datetime
+            if 'timestamp' in data.columns:
+                data['timestamp'] = pd.to_datetime(data['timestamp'], format=self.datetime_format, errors='coerce')
+                # Establecer timestamp como índice si es una columna válida
+                if not data['timestamp'].isnull().any():
+                    data.set_index('timestamp', inplace=True)
             
             # Convertir columnas numéricas
-            for col in df.columns:
-                if col not in ['Timestamp', 'Date', 'Time', 'DateTime']:
+            for col in data.columns:
+                if col not in ['timestamp', 'date', 'time', 'datetime']:
                     try:
-                        df[col] = pd.to_numeric(df[col])
+                        data[col] = pd.to_numeric(data[col])
                     except:
                         pass
             
             # Almacenar en caché si se solicita
             if cache:
-                self.data_cache[filepath] = df.copy()
+                self.data_cache[filepath] = data.copy()
             
-            self.logger.info(f"Datos cargados: {len(df)} filas, {len(df.columns)} columnas")
-            return df
+            logger.info(f"Datos cargados: {len(data)} filas, {len(data.columns)} columnas")
+            return data
         
         except Exception as e:
-            self.logger.error(f"Error al cargar {filepath}: {e}")
+            logger.error(f"Error al cargar {filepath}: {e}")
             raise
     
-    def prepare_data(self, data: pd.DataFrame, add_features: bool = True, 
-                    window_size: int = 50) -> pd.DataFrame:
+    def prepare_data(self, data: pd.DataFrame, add_features: bool = True) -> pd.DataFrame:
         """
         Prepara los datos para su uso en análisis y trading.
         
         Args:
             data: DataFrame con datos de precios
             add_features: Si es True, agrega características adicionales
-            window_size: Tamaño de la ventana para cálculos
             
         Returns:
             DataFrame preparado para análisis
         """
         try:
-            # Crear copia para no modificar el original
-            df = data.copy()
+            # Hacer una copia para no modificar el original
+            prepared_data = data.copy()
             
-            # Verificar columnas mínimas requeridas
-            required_cols = ['Open', 'High', 'Low', 'Close']
-            missing_cols = [col for col in required_cols if col not in df.columns]
+            # Asegurarse de que nombres de columnas estén en minúsculas
+            prepared_data.columns = [col.lower() for col in prepared_data.columns]
             
-            if missing_cols:
-                self.logger.error(f"Faltan columnas requeridas: {missing_cols}")
-                raise ValueError(f"Faltan columnas requeridas: {missing_cols}")
+            # Verificar columnas requeridas
+            missing_columns = [col for col in self.required_columns if col not in prepared_data.columns]
             
-            # Eliminar filas con valores faltantes en columnas críticas
-            df = df.dropna(subset=required_cols)
+            # Si hay columnas faltantes, intentar buscarlas con nombres que contengan las palabras clave
+            if missing_columns:
+                logger.warning(f"Faltan columnas requeridas: {missing_columns}")
+                for missing_col in missing_columns.copy():
+                    # Buscar columnas que contienen el nombre requerido
+                    matching_cols = [col for col in prepared_data.columns if missing_col in col.lower()]
+                    if matching_cols:
+                        logger.info(f"Renombrando columna {matching_cols[0]} a {missing_col}")
+                        prepared_data[missing_col] = prepared_data[matching_cols[0]]
+                        missing_columns.remove(missing_col)
             
-            # Asegurarse de que exista una columna de volumen
-            if 'Volume' not in df.columns:
-                df['Volume'] = 0
-                self.logger.warning("Columna 'Volume' no encontrada, usando valores por defecto")
+            # Verificar nuevamente si faltan columnas
+            if missing_columns:
+                # Intentar usar mayúsculas
+                uppercase_columns = [col.upper() for col in self.required_columns]
+                print(uppercase_columns)
+                missing_uppercase = [col for col in uppercase_columns if col not in data.columns]
+                if not missing_uppercase:
+                    # Las columnas están en mayúsculas, copiarlas
+                    for i, col in enumerate(uppercase_columns):
+                        if col in data.columns:
+                            prepared_data[self.required_columns[i]] = data[col]
+                    logger.info("Columnas en mayúsculas copiadas a minúsculas")
+                else:
+                    raise ValueError(f"Faltan columnas requeridas: {missing_columns}")
             
             # Agregar características si se solicita
             if add_features:
-                df = create_features(df)
+                prepared_data = self.add_technical_indicators(prepared_data)
             
-            # Eliminar filas con valores NaN que puedan haberse creado
-            df = df.dropna()
+            # Eliminar filas con valores NaN
+            prepared_data.dropna(inplace=True)
             
-            self.logger.info(f"Datos preparados: {len(df)} filas, {len(df.columns)} columnas")
-            return df
+            logger.info(f"Datos preparados: {len(prepared_data)} filas con {len(prepared_data.columns)} columnas")
+            return prepared_data
         
         except Exception as e:
-            self.logger.error(f"Error al preparar datos: {e}")
+            logger.error(f"Error al preparar datos: {e}")
             raise
+    
+    def add_technical_indicators(self, data: pd.DataFrame) -> pd.DataFrame:
+        """
+        Agrega indicadores técnicos a los datos.
+        
+        Args:
+            data: DataFrame con datos OHLC
+            
+        Returns:
+            DataFrame con indicadores técnicos añadidos
+        """
+        # Asegurarse de que los nombres de columnas estén en minúsculas
+        ohlc_data = data.copy()
+        
+        # Si no existen las columnas requeridas pero existen en mayúsculas, usar esas
+        for req_col in self.required_columns:
+            if req_col not in ohlc_data.columns and req_col.upper() in ohlc_data.columns:
+                ohlc_data[req_col] = ohlc_data[req_col.upper()]
+        
+        # Agregar indicadores solo si existen las columnas necesarias
+        if all(col in ohlc_data.columns for col in self.required_columns):
+            # Medias móviles
+            ohlc_data['sma_10'] = ohlc_data['close'].rolling(window=10).mean()
+            ohlc_data['sma_20'] = ohlc_data['close'].rolling(window=20).mean()
+            ohlc_data['sma_50'] = ohlc_data['close'].rolling(window=50).mean()
+            
+            # RSI (Relative Strength Index)
+            delta = ohlc_data['close'].diff()
+            gain = delta.where(delta > 0, 0)
+            loss = -delta.where(delta < 0, 0)
+            avg_gain = gain.rolling(window=14).mean()
+            avg_loss = loss.rolling(window=14).mean()
+            rs = avg_gain / avg_loss
+            ohlc_data['rsi'] = 100 - (100 / (1 + rs))
+            
+            # MACD (Moving Average Convergence Divergence)
+            ema_12 = ohlc_data['close'].ewm(span=12, adjust=False).mean()
+            ema_26 = ohlc_data['close'].ewm(span=26, adjust=False).mean()
+            ohlc_data['macd'] = ema_12 - ema_26
+            ohlc_data['macd_signal'] = ohlc_data['macd'].ewm(span=9, adjust=False).mean()
+            ohlc_data['macd_hist'] = ohlc_data['macd'] - ohlc_data['macd_signal']
+            
+            # Bandas de Bollinger
+            ohlc_data['bb_middle'] = ohlc_data['close'].rolling(window=20).mean()
+            std_dev = ohlc_data['close'].rolling(window=20).std()
+            ohlc_data['bb_upper'] = ohlc_data['bb_middle'] + 2 * std_dev
+            ohlc_data['bb_lower'] = ohlc_data['bb_middle'] - 2 * std_dev
+            
+            # ATR (Average True Range)
+            high_low = ohlc_data['high'] - ohlc_data['low']
+            high_close = (ohlc_data['high'] - ohlc_data['close'].shift()).abs()
+            low_close = (ohlc_data['low'] - ohlc_data['close'].shift()).abs()
+            ranges = pd.concat([high_low, high_close, low_close], axis=1)
+            true_range = ranges.max(axis=1)
+            ohlc_data['atr'] = true_range.rolling(14).mean()
+            
+            # Stochastic Oscillator
+            low_14 = ohlc_data['low'].rolling(window=14).min()
+            high_14 = ohlc_data['high'].rolling(window=14).max()
+            ohlc_data['stoch_k'] = 100 * ((ohlc_data['close'] - low_14) / (high_14 - low_14))
+            ohlc_data['stoch_d'] = ohlc_data['stoch_k'].rolling(window=3).mean()
+            
+            # Características de volatilidad
+            ohlc_data['volatility'] = ohlc_data['close'].pct_change().rolling(window=10).std() * np.sqrt(10)
+            
+            # Características de tendencia
+            ohlc_data['trend_5_20'] = ohlc_data['sma_5'] - ohlc_data['sma_20'] if 'sma_5' in ohlc_data.columns else ohlc_data['sma_10'] - ohlc_data['sma_20']
+            ohlc_data['trend_direction'] = np.sign(ohlc_data['trend_5_20'])
+            
+            logger.info(f"Añadidos {len(ohlc_data.columns) - len(data.columns)} indicadores técnicos")
+        else:
+            logger.warning("No se pudieron agregar indicadores técnicos: faltan columnas OHLC")
+        
+        return ohlc_data
     
     def split_data(self, data: pd.DataFrame, train_size: float = 0.7, 
                   val_size: float = 0.15) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -147,7 +240,7 @@ class DataProcessor:
         try:
             # Validar tamaños
             if train_size + val_size >= 1.0:
-                self.logger.warning("La suma de train_size y val_size debe ser menor que 1.0. Ajustando...")
+                logger.warning("La suma de train_size y val_size debe ser menor que 1.0. Ajustando...")
                 test_size = 0.1
                 total = train_size + val_size
                 train_size = train_size / total * 0.9
@@ -165,11 +258,11 @@ class DataProcessor:
             val_data = data.iloc[train_end:val_end].copy()
             test_data = data.iloc[val_end:].copy()
             
-            self.logger.info(f"Datos divididos: Train={len(train_data)}, Val={len(val_data)}, Test={len(test_data)}")
+            logger.info(f"Datos divididos: Train={len(train_data)}, Val={len(val_data)}, Test={len(test_data)}")
             return train_data, val_data, test_data
         
         except Exception as e:
-            self.logger.error(f"Error al dividir datos: {e}")
+            logger.error(f"Error al dividir datos: {e}")
             raise
     
     def normalize_data(self, data: pd.DataFrame, method: str = 'zscore',
@@ -191,7 +284,7 @@ class DataProcessor:
             
             # Determinar columnas a normalizar
             if columns is None:
-                columns = [col for col in df.columns if col not in ['Timestamp', 'Date', 'Time', 'DateTime', 'BarType', 'SwingHigh', 'SwingLow']]
+                columns = [col for col in df.columns if col not in ['timestamp', 'date', 'time', 'datetime', 'bartype', 'swinghigh', 'swinglow']]
             
             # Parámetros de normalización
             norm_params = {}
@@ -226,12 +319,12 @@ class DataProcessor:
                         norm_params[col] = {'min': min_val, 'max': max_val}
             
             else:
-                self.logger.warning(f"Método de normalización '{method}' no reconocido. Usando datos sin normalizar.")
+                logger.warning(f"Método de normalización '{method}' no reconocido. Usando datos sin normalizar.")
             
             return df, norm_params
         
         except Exception as e:
-            self.logger.error(f"Error al normalizar datos: {e}")
+            logger.error(f"Error al normalizar datos: {e}")
             raise
     
     def denormalize_data(self, data: pd.DataFrame, norm_params: Dict, 
@@ -271,7 +364,7 @@ class DataProcessor:
             return df
         
         except Exception as e:
-            self.logger.error(f"Error al desnormalizar datos: {e}")
+            logger.error(f"Error al desnormalizar datos: {e}")
             raise
     
     def create_window_samples(self, data: pd.DataFrame, window_size: int, 
@@ -293,7 +386,7 @@ class DataProcessor:
             n_samples = (len(data) - window_size) // step + 1
             
             if n_samples <= 0:
-                self.logger.error(f"Tamaño de ventana {window_size} demasiado grande para {len(data)} muestras")
+                logger.error(f"Tamaño de ventana {window_size} demasiado grande para {len(data)} muestras")
                 raise ValueError(f"Tamaño de ventana {window_size} demasiado grande para {len(data)} muestras")
             
             # Crear muestras X
@@ -311,5 +404,5 @@ class DataProcessor:
             return X_samples, None
         
         except Exception as e:
-            self.logger.error(f"Error al crear muestras de ventana: {e}")
+            logger.error(f"Error al crear muestras de ventana: {e}")
             raise
